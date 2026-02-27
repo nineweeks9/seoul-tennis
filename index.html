@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>서울 테니스 예약 현황</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root {
+  --bg:#f0f2f5; --panel:#ffffff; --panel2:#f7f8fa;
+  --border:#e4e7ec; --border2:#d1d5db;
+  --text:#111827; --text2:#374151; --muted:#9ca3af;
+  --avail:#16a34a; --avail-bg:#dcfce7;
+  --few:#d97706;   --few-bg:#fef3c7;
+  --full:#dc2626;  --full-bg:#fee2e2;
+  --accent:#2563eb; --accent-bg:#eff6ff;
+  --shadow:0 1px 4px rgba(0,0,0,0.08),0 0 0 1px rgba(0,0,0,0.04);
+  --shadow-md:0 4px 16px rgba(0,0,0,0.1);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);}
+
+/* TOPBAR */
+.topbar{height:56px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;z-index:200;box-shadow:var(--shadow);}
+.brand{display:flex;align-items:center;gap:9px;margin-right:4px;flex-shrink:0;}
+.brand-ball{width:32px;height:32px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;box-shadow:0 2px 6px rgba(37,99,235,0.35);}
+.brand-name{font-size:0.95rem;font-weight:800;white-space:nowrap;letter-spacing:-0.02em;}
+.brand-name em{color:var(--accent);font-style:normal;}
+.v-line{width:1px;height:24px;background:var(--border);flex-shrink:0;}
+
+.tab-switcher{display:flex;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:3px;gap:2px;flex-shrink:0;}
+.tab-btn{padding:5px 14px;border-radius:7px;border:none;background:transparent;color:var(--muted);font-family:'Noto Sans KR',sans-serif;font-size:0.78rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all 0.15s;white-space:nowrap;}
+.tab-btn:hover{color:var(--text2);}
+.tab-btn.active{background:var(--accent);color:#fff;font-weight:700;box-shadow:0 1px 6px rgba(37,99,235,0.3);}
+
+.date-strip{display:flex;gap:4px;overflow-x:auto;flex:1;scrollbar-width:none;align-items:center;}
+.date-strip::-webkit-scrollbar{display:none;}
+.date-chip{flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding:4px 10px;border-radius:8px;font-size:0.73rem;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--panel);color:var(--muted);transition:all 0.15s;font-family:'Noto Sans KR',sans-serif;line-height:1.25;gap:1px;white-space:nowrap;}
+.date-chip:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg);}
+.date-chip.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;}
+.date-chip .dow-lbl{font-family:'DM Mono',monospace;font-size:0.58rem;opacity:0.7;}
+
+.search-wrap{position:relative;flex-shrink:0;}
+.search-wrap::before{content:'🔍';position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:0.75rem;pointer-events:none;z-index:1;}
+.topbar-search{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:6px 12px 6px 30px;color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:0.78rem;outline:none;width:148px;transition:all 0.15s;}
+.topbar-search:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,0.1);}
+.topbar-search::placeholder{color:var(--muted);}
+.gu-select{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:0.78rem;outline:none;cursor:pointer;flex-shrink:0;transition:all 0.15s;}
+.gu-select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,0.1);}
+
+/* VIEWS */
+.views{flex:1;overflow:hidden;display:flex;flex-direction:column;}
+.view{display:none;flex:1;overflow:hidden;}
+.view.active{display:flex;}
+
+/* MAP VIEW */
+.view-map{flex-direction:row;}
+#map{flex:1;height:100%;}
+.map-side{width:360px;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;box-shadow:-2px 0 8px rgba(0,0,0,0.05);}
+.map-side-header{padding:14px 18px 12px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.map-side-title{font-size:0.83rem;font-weight:700;display:flex;justify-content:space-between;align-items:center;}
+.map-side-date{font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--accent);margin-top:3px;}
+.legend{display:flex;gap:12px;padding:8px 18px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--panel2);}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:0.69rem;color:var(--text2);}
+.legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.court-list{flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+.court-item{padding:11px 18px;cursor:pointer;border-bottom:1px solid var(--border);transition:background 0.1s;border-left:3px solid transparent;}
+.court-item:hover{background:var(--panel2);}
+.court-item.selected{background:var(--accent-bg);border-left-color:var(--accent);}
+.ci-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:7px;}
+.ci-name{font-size:0.82rem;font-weight:600;color:var(--text);line-height:1.3;}
+.ci-gu{font-size:0.68rem;color:var(--muted);margin-top:1px;}
+.ci-count{font-family:'DM Mono',monospace;font-size:0.72rem;font-weight:600;white-space:nowrap;flex-shrink:0;}
+.ci-count.avail{color:var(--avail);} .ci-count.few{color:var(--few);} .ci-count.full{color:var(--full);}
+.time-slots{display:flex;flex-wrap:wrap;gap:3px;}
+.slot{font-family:'DM Mono',monospace;font-size:0.62rem;padding:2px 6px;border-radius:4px;border:1px solid transparent;white-space:nowrap;}
+.slot.open{background:var(--avail-bg);border-color:rgba(22,163,74,0.3);color:var(--avail);}
+.slot.taken{background:#f3f4f6;border-color:#e5e7eb;color:#c9cfd6;text-decoration:line-through;}
+.detail-panel{border-top:1px solid var(--border);padding:14px 18px;flex-shrink:0;background:var(--panel2);min-height:96px;}
+.detail-panel h3{font-size:0.83rem;font-weight:700;margin-bottom:6px;color:var(--text);}
+.detail-info{font-size:0.74rem;color:var(--text2);line-height:1.8;}
+.goto-btn{display:inline-flex;align-items:center;gap:5px;margin-top:10px;background:var(--accent);color:#fff;font-weight:700;font-size:0.77rem;border:none;border-radius:8px;padding:7px 16px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;text-decoration:none;transition:all 0.15s;box-shadow:0 2px 6px rgba(37,99,235,0.3);}
+.goto-btn:hover{background:#1d4ed8;transform:translateY(-1px);}
+
+/* CAL VIEW */
+.view-cal{flex-direction:column;overflow:hidden;}
+
+/* 툴바: 왼쪽 제목, 오른쪽 필터 모음 */
+.cal-toolbar{padding:10px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;background:var(--panel);box-shadow:var(--shadow);}
+.cal-toolbar-left{display:flex;flex-direction:column;flex-shrink:0;}
+.cal-toolbar-title{font-size:0.9rem;font-weight:700;color:var(--text);}
+.cal-toolbar-sub{font-size:0.7rem;color:var(--muted);font-family:'DM Mono',monospace;margin-top:1px;}
+
+/* 오른쪽 필터 영역 */
+.cal-toolbar-right{display:flex;align-items:center;gap:8px;margin-left:auto;}
+
+/* 날짜 칩 (시간표 전용) */
+.cal-date-strip{display:flex;gap:3px;overflow-x:auto;scrollbar-width:none;align-items:center;max-width:400px;}
+.cal-date-strip::-webkit-scrollbar{display:none;}
+.cal-date-chip{flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding:4px 9px;border-radius:8px;font-size:0.7rem;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--panel2);color:var(--muted);transition:all 0.15s;font-family:'Noto Sans KR',sans-serif;line-height:1.25;gap:1px;white-space:nowrap;}
+.cal-date-chip:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg);}
+.cal-date-chip.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;}
+.cal-date-chip .dow-lbl{font-family:'DM Mono',monospace;font-size:0.57rem;opacity:0.65;}
+.cal-date-chip .pip-row{display:flex;gap:2px;margin-top:2px;}
+.cal-date-chip .pip{width:4px;height:4px;border-radius:50%;}
+.cal-date-chip.active .pip{background:rgba(255,255,255,0.6)!important;}
+
+/* 시간 필터 */
+.time-filter{display:flex;align-items:center;gap:5px;flex-shrink:0;}
+.time-lbl{font-size:0.72rem;color:var(--muted);white-space:nowrap;}
+.time-sel{background:var(--panel2);border:1px solid var(--border);border-radius:7px;padding:5px 8px;color:var(--text);font-family:'DM Mono',monospace;font-size:0.72rem;outline:none;cursor:pointer;}
+.time-sel:focus{border-color:var(--accent);}
+
+/* 상태 필터 pills */
+.cal-filters{display:flex;gap:4px;flex-shrink:0;}
+.filter-pill{padding:4px 12px;border-radius:20px;font-size:0.72rem;border:1px solid var(--border);background:var(--panel2);color:var(--muted);cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all 0.15s;white-space:nowrap;}
+.filter-pill:hover{border-color:var(--accent);color:var(--accent);}
+.filter-pill.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
+
+/* Grid */
+.cal-scroll{flex:1;overflow:auto;background:var(--bg);}
+.cal-grid-wrap{min-width:860px;}
+.cal-header-row{display:flex;position:sticky;top:0;background:var(--panel);border-bottom:2px solid var(--border);z-index:10;box-shadow:0 1px 4px rgba(0,0,0,0.06);}
+.cal-corner{width:210px;flex-shrink:0;padding:8px 16px;border-right:1px solid var(--border);font-size:0.68rem;color:var(--muted);display:flex;align-items:center;font-family:'DM Mono',monospace;background:var(--panel2);}
+.cal-times-header{flex:1;display:flex;}
+.cal-time-head{flex:1;text-align:center;padding:8px 2px;font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);border-right:1px solid var(--border);}
+.cal-body{display:flex;flex-direction:column;}
+.cal-row{display:flex;align-items:stretch;border-bottom:1px solid var(--border);min-height:52px;background:var(--panel);transition:background 0.1s;}
+.cal-row:hover{background:#fafbff;}
+.cal-row.highlight{background:var(--accent-bg);}
+.cal-row:nth-child(even){background:#fafafa;}
+.cal-row:nth-child(even):hover{background:#f0f4ff;}
+.cal-court-label{width:210px;flex-shrink:0;padding:0 14px;display:flex;flex-direction:column;justify-content:center;border-right:1px solid var(--border);cursor:pointer;transition:background 0.1s;position:relative;}
+.cal-court-label:hover{background:var(--accent-bg);}
+.cal-court-name{font-size:0.78rem;font-weight:600;color:var(--text);line-height:1.3;}
+.cal-court-gu{font-size:0.65rem;color:var(--muted);margin-top:2px;}
+.avail-bar{position:absolute;bottom:0;left:0;height:2px;border-radius:1px;transition:width 0.4s ease;}
+.cal-slots-row{flex:1;display:flex;align-items:center;padding:5px 6px;gap:3px;}
+.cal-slot{flex:1;min-width:0;height:38px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:0.6rem;cursor:pointer;transition:all 0.12s;border:1px solid transparent;white-space:nowrap;overflow:hidden;}
+.cal-slot.open{background:var(--avail-bg);border-color:rgba(22,163,74,0.3);color:var(--avail);font-weight:500;}
+.cal-slot.open:hover{background:#bbf7d0;transform:scaleY(1.06);z-index:2;box-shadow:0 2px 8px rgba(22,163,74,0.2);}
+.cal-slot.taken{background:#f3f4f6;border-color:#e9ebee;color:#d1d5db;position:relative;}
+.cal-slot.taken::after{content:'';position:absolute;width:50%;height:1px;background:rgba(0,0,0,0.12);border-radius:1px;}
+
+/* Badge */
+.badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:12px;font-family:'DM Mono',monospace;font-size:0.68rem;font-weight:500;}
+.badge.avail{background:var(--avail-bg);color:var(--avail);border:1px solid rgba(22,163,74,0.2);}
+.badge.few{background:var(--few-bg);color:var(--few);border:1px solid rgba(217,119,6,0.2);}
+.badge.full{background:var(--full-bg);color:var(--full);border:1px solid rgba(220,38,38,0.2);}
+
+/* Tooltip */
+.tt{position:fixed;background:#1f2937;color:#f9fafb;border-radius:7px;padding:7px 11px;font-size:0.74rem;pointer-events:none;z-index:9999;box-shadow:var(--shadow-md);display:none;white-space:nowrap;line-height:1.5;}
+
+/* Statusbar */
+.statusbar{height:26px;background:var(--panel);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:14px;font-family:'DM Mono',monospace;font-size:0.67rem;color:var(--muted);flex-shrink:0;}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--avail);animation:pulse 2s infinite;flex-shrink:0;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.35}}
+
+/* Loading bar */
+.loading-bar{height:3px;background:linear-gradient(90deg,var(--accent),#60a5fa,var(--accent));background-size:200% 100%;animation:shimmer 1.2s infinite;position:fixed;top:56px;left:0;right:0;z-index:999;display:none;}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* Leaflet */
+.leaflet-container{background:#e8edf2;font-family:'Noto Sans KR',sans-serif;}
+.leaflet-popup-content-wrapper{background:var(--panel)!important;border:1px solid var(--border)!important;border-radius:10px!important;box-shadow:var(--shadow-md)!important;color:var(--text)!important;}
+.leaflet-popup-content{margin:12px 15px!important;font-family:'Noto Sans KR',sans-serif!important;font-size:0.8rem!important;line-height:1.7!important;}
+.leaflet-popup-tip{background:var(--panel)!important;}
+.leaflet-popup-close-button{color:var(--muted)!important;top:7px!important;right:9px!important;}
+
+/* Marker */
+.court-marker{display:flex;align-items:center;justify-content:center;border-radius:50%;border:2.5px solid rgba(255,255,255,0.9);font-family:'DM Mono',monospace;font-size:0.65rem;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.25);transition:transform 0.15s;color:#fff;}
+.court-marker:hover,.court-marker.sel{transform:scale(1.3);box-shadow:0 4px 14px rgba(0,0,0,0.3);}
+.court-marker.avail{background:var(--avail);}
+.court-marker.few{background:var(--few);}
+.court-marker.full{background:var(--full);}
+
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
+
+@media(max-width:768px){
+  .map-side{width:100%;max-height:44vh;}
+  .view-map{flex-direction:column;}
+  .cal-grid-wrap{min-width:700px;}
+  .cal-court-label{width:160px;}
+  .topbar-search,.gu-select{display:none;}
+  .cal-date-strip{max-width:260px;}
+}
+</style>
+</head>
+<body>
+
+<div class="loading-bar" id="loadingBar"></div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-ball">🎾</div>
+    <span class="brand-name">서울 테니스 <em>예약현황</em></span>
+  </div>
+  <div class="v-line"></div>
+  <div class="tab-switcher">
+    <button class="tab-btn active" id="tabMap" onclick="switchTab('map')">🗺️ 지도뷰</button>
+    <button class="tab-btn" id="tabCal" onclick="switchTab('cal')">📅 시간표뷰</button>
+  </div>
+  <div class="v-line"></div>
+  <div class="date-strip" id="dateStrip"></div>
+  <div class="v-line"></div>
+  <div class="search-wrap">
+    <input class="topbar-search" type="text" placeholder="시설 검색..." id="searchInput" oninput="applyFilter()">
+  </div>
+  <select class="gu-select" id="guSelect" onchange="applyFilter()">
+    <option value="">전체 구</option>
+  </select>
+</div>
+
+<!-- VIEWS -->
+<div class="views">
+
+  <!-- ① 지도뷰 -->
+  <div class="view view-map active" id="viewMap">
+    <div id="map"></div>
+    <div class="map-side">
+      <div class="map-side-header">
+        <div class="map-side-title">
+          예약 가능 시설
+          <span id="mapCountBadge" class="badge avail">-</span>
+        </div>
+        <div class="map-side-date" id="mapSideDate"></div>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--avail)"></div>여유 (5타임+)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--few)"></div>임박 (1~4)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--full)"></div>마감</div>
+      </div>
+      <div class="court-list" id="mapCourtList">
+        <div style="padding:32px;text-align:center;color:var(--muted);font-size:0.83rem;">데이터 불러오는 중...</div>
+      </div>
+      <div class="detail-panel" id="detailPanel">
+        <div class="detail-info" style="color:var(--muted)">← 시설을 클릭하면 상세 정보가 표시됩니다</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② 시간표뷰 -->
+  <div class="view view-cal" id="viewCal">
+    <div class="cal-toolbar">
+      <!-- 왼쪽: 제목 + 서브 -->
+      <div class="cal-toolbar-left">
+        <span class="cal-toolbar-title" id="calTitle">날짜를 선택하세요</span>
+        <span class="cal-toolbar-sub" id="calSub">0개 시설</span>
+      </div>
+
+      <!-- 오른쪽: 날짜칩 + 시간필터 + 상태필터 -->
+      <div class="cal-toolbar-right">
+
+        <!-- 날짜 필터 -->
+        <div class="cal-date-strip" id="calDateStrip"></div>
+
+        <div class="v-line" style="height:22px;"></div>
+
+        <!-- 시간 범위 필터 -->
+        <div class="time-filter">
+          <span class="time-lbl">⏰</span>
+          <select class="time-sel" id="timeFrom" onchange="renderCalGrid()">
+            <option value="06:00">06시~</option>
+            <option value="09:00">09시~</option>
+            <option value="12:00" selected>12시~</option>
+            <option value="15:00">15시~</option>
+            <option value="18:00">18시~</option>
+          </select>
+          <span class="time-lbl">~</span>
+          <select class="time-sel" id="timeTo" onchange="renderCalGrid()">
+            <option value="12:00">~12시</option>
+            <option value="15:00">~15시</option>
+            <option value="18:00">~18시</option>
+            <option value="21:00" selected>~21시</option>
+          </select>
+        </div>
+
+        <div class="v-line" style="height:22px;"></div>
+
+        <!-- 상태 필터 -->
+        <div class="cal-filters">
+          <button class="filter-pill active" onclick="setCalFilter('all',this)">전체</button>
+          <button class="filter-pill" onclick="setCalFilter('avail',this)">예약가능만</button>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="cal-scroll">
+      <div class="cal-grid-wrap">
+        <div class="cal-header-row">
+          <div class="cal-corner">시설 / 시간대</div>
+          <div class="cal-times-header" id="calTimeHeader"></div>
+        </div>
+        <div id="calBody">
+          <div style="padding:50px;text-align:center;color:var(--muted);font-size:0.84rem;">데이터 불러오는 중...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Tooltip -->
+<div class="tt" id="tt"></div>
+
+<!-- STATUSBAR -->
+<div class="statusbar">
+  <div class="live-dot"></div>
+  <span>서울시 공공서비스예약</span>
+  <span id="statusTime"></span>
+  <span id="apiStatus" style="margin-left:auto"></span>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════
+const BASE_COURTS = [
+  {id:1, name:'잠실종합운동장 테니스장', gu:'송파구',   lat:37.5131,lng:127.0733,svcid:'S220310172740589179'},
+  {id:2, name:'서울숲 테니스장',          gu:'성동구',   lat:37.5447,lng:127.0374,svcid:'S201129093238129783'},
+  {id:3, name:'보라매공원 테니스장',       gu:'동작구',   lat:37.4924,lng:126.9226,svcid:''},
+  {id:4, name:'강동구민체육센터 테니스',   gu:'강동구',   lat:37.5298,lng:127.1238,svcid:''},
+  {id:5, name:'여의도한강공원 테니스장',   gu:'영등포구', lat:37.5285,lng:126.9326,svcid:''},
+  {id:6, name:'뚝섬한강공원 테니스장',    gu:'광진구',   lat:37.5298,lng:127.0667,svcid:''},
+  {id:7, name:'반포한강공원 테니스장',    gu:'서초구',   lat:37.5072,lng:126.9963,svcid:''},
+  {id:8, name:'이촌한강공원 테니스장',    gu:'용산구',   lat:37.5178,lng:126.9638,svcid:''},
+  {id:9, name:'노원구 공릉 테니스장',     gu:'노원구',   lat:37.6296,lng:127.0744,svcid:''},
+  {id:10,name:'은평구민체육센터 테니스',  gu:'은평구',   lat:37.6023,lng:126.9228,svcid:''},
+  {id:11,name:'마포 망원 테니스장',       gu:'마포구',   lat:37.5562,lng:126.9032,svcid:''},
+  {id:12,name:'도봉구 초안산 테니스장',   gu:'도봉구',   lat:37.6544,lng:127.0447,svcid:''},
+  {id:13,name:'성북구 정릉 테니스장',     gu:'성북구',   lat:37.6002,lng:127.0011,svcid:''},
+  {id:14,name:'구로구 고척 테니스장',     gu:'구로구',   lat:37.4998,lng:126.8672,svcid:''},
+  {id:15,name:'양천구 목동 테니스장',     gu:'양천구',   lat:37.5258,lng:126.8766,svcid:''},
+  {id:16,name:'관악구 낙성대 테니스장',   gu:'관악구',   lat:37.4773,lng:126.9543,svcid:''},
+  {id:17,name:'강서구 방화 테니스장',     gu:'강서구',   lat:37.5705,lng:126.8019,svcid:''},
+  {id:18,name:'서초구 양재 테니스장',     gu:'서초구',   lat:37.4698,lng:127.0337,svcid:''},
+  {id:19,name:'강남구 대치 테니스장',     gu:'강남구',   lat:37.4966,lng:127.0620,svcid:''},
+  {id:20,name:'중랑구 용마 테니스장',     gu:'중랑구',   lat:37.5802,lng:127.0805,svcid:''},
+];
+
+const GU_COORDS = {
+  '종로구':{lat:37.5730,lng:126.9794},'중구':{lat:37.5636,lng:126.9976},'용산구':{lat:37.5384,lng:126.9654},
+  '성동구':{lat:37.5635,lng:127.0369},'광진구':{lat:37.5384,lng:127.0823},'동대문구':{lat:37.5744,lng:127.0396},
+  '중랑구':{lat:37.5953,lng:127.0935},'성북구':{lat:37.5894,lng:127.0167},'강북구':{lat:37.6398,lng:127.0255},
+  '도봉구':{lat:37.6688,lng:127.0468},'노원구':{lat:37.6542,lng:127.0568},'은평구':{lat:37.6176,lng:126.9227},
+  '서대문구':{lat:37.5791,lng:126.9368},'마포구':{lat:37.5638,lng:126.9084},'양천구':{lat:37.5270,lng:126.8559},
+  '강서구':{lat:37.5509,lng:126.8495},'구로구':{lat:37.4954,lng:126.8876},'금천구':{lat:37.4569,lng:126.8955},
+  '영등포구':{lat:37.5263,lng:126.8963},'동작구':{lat:37.5124,lng:126.9393},'관악구':{lat:37.4784,lng:126.9516},
+  '서초구':{lat:37.4837,lng:127.0324},'강남구':{lat:37.5172,lng:127.0473},'송파구':{lat:37.5145,lng:127.1058},
+  '강동구':{lat:37.5301,lng:127.1238},
+};
+
+const TIME_SLOTS = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'];
+const DOW_KO = ['일','월','화','수','목','금','토'];
+
+let COURTS = [...BASE_COURTS];
+let filteredCourts = [...COURTS];
+let selectedDate = '';
+let selectedCourtId = null;
+let currentTab = 'map';
+let calFilter = 'all';
+const markers = {};
+
+// ═══════════════════════════════════════
+// SLOTS
+// ═══════════════════════════════════════
+function genSlots(courtId, dateStr) {
+  const seed = courtId * 31 + parseInt(dateStr.replace(/-/g,'').slice(-5));
+  const rng = n => Math.sin(seed*n*127.1+n*311.7)*0.5+0.5;
+  return TIME_SLOTS.map((t,i) => ({time:t, available:rng(i+1)>0.4}));
+}
+
+function courtStatusByDate(courtId, dateStr) {
+  const court = COURTS.find(c=>c.id===courtId);
+  if (court?.apiStatus && dateStr===selectedDate) {
+    const s = court.apiStatus;
+    if (s==='접수중') return {cls:'avail',count:8,label:'접수중'};
+    if (s==='안내중') return {cls:'few',count:3,label:'안내중'};
+    return {cls:'full',count:0,label:s};
+  }
+  const slots = genSlots(courtId, dateStr);
+  const n = slots.filter(s=>s.available).length;
+  if (n===0) return {cls:'full',count:0,label:'마감'};
+  if (n<=4)  return {cls:'few',count:n,label:'임박'};
+  return           {cls:'avail',count:n,label:'여유'};
+}
+function courtStatus(id) { return courtStatusByDate(id, selectedDate); }
+
+// ═══════════════════════════════════════
+// SEOUL API
+// ═══════════════════════════════════════
+async function loadSeoulAPI() {
+  document.getElementById('loadingBar').style.display='block';
+  try {
+    // Vercel API Route 프록시 경로 사용 (CORS 해결 + 실시간 데이터)
+    const res = await fetch('/api/seoul?keyword=테니스&start=1&end=1000');
+    if (!res.ok) throw new Error('HTTP '+res.status);
+    const json = await res.json();
+    const root = json['ListPublicReservationSport'];
+    if (!root || root.RESULT?.CODE !== 'INFO-000') throw new Error('API 오류');
+    const rows = (root.row||[]).filter(r=>(r.SVCNM||'').includes('테니스')||(r.MINCLASSNM||'').includes('테니스'));
+    if (rows.length > 0) {
+      COURTS = rows.map((r,i)=>{
+        const gu = r.AREANM||'';
+        const gc = GU_COORDS[gu]||{lat:37.5326+(Math.random()-0.5)*0.15,lng:126.9902+(Math.random()-0.5)*0.15};
+        const base = BASE_COURTS.find(b=>b.name.includes((r.SVCNM||'').slice(0,4))||(r.SVCNM||'').includes(b.name.slice(0,4)));
+        return {
+          id:i+1, name:r.SVCNM||'테니스장', gu,
+          lat: base?base.lat:gc.lat+(Math.random()-0.5)*0.02,
+          lng: base?base.lng:gc.lng+(Math.random()-0.5)*0.02,
+          svcid:r.SVCID||'', apiStatus:r.SVCSTATNM||'',
+          rcpStart:r.RCPBGNDT||'', rcpEnd:r.RCPENDDT||'',
+          fee:r.V_MIN||'', place:r.PLACENM||'',
+        };
+      });
+      setApiStatus('🟢 실시간 연결됨', true);
+    } else throw new Error('데이터 없음');
+  } catch(e) {
+    console.warn('API 실패:', e.message);
+    COURTS = [...BASE_COURTS];
+    setApiStatus('🟡 샘플 데이터', false);
+  }
+  document.getElementById('loadingBar').style.display='none';
+  filteredCourts = [...COURTS];
+  buildGuFilter();
+  buildMapMarkers();
+  renderMapList();
+  updateMapMarkers();
+  buildDateStrip(); // pip 업데이트
+  if (currentTab==='cal') renderCalGrid();
+}
+
+function setApiStatus(msg, ok) {
+  document.getElementById('apiStatus').innerHTML =
+    `<span style="display:inline-flex;align-items:center;gap:4px;padding:1px 9px;border-radius:10px;font-size:0.65rem;
+      background:${ok?'var(--avail-bg)':'var(--few-bg)'};
+      color:${ok?'var(--avail)':'var(--few)'};
+      border:1px solid ${ok?'rgba(22,163,74,0.2)':'rgba(217,119,6,0.2)'}">
+      ${msg}
+    </span>`;
+}
+
+// ═══════════════════════════════════════
+// DATE STRIP
+// ═══════════════════════════════════════
+function buildDateStrip() {
+  const strip = document.getElementById('dateStrip');
+  const calStrip = document.getElementById('calDateStrip');
+  const today = new Date();
+  strip.innerHTML=''; calStrip.innerHTML='';
+
+  for (let i=0;i<14;i++) {
+    const d = new Date(today); d.setDate(today.getDate()+i);
+    const iso = d.toISOString().slice(0,10);
+    const md  = `${d.getMonth()+1}/${d.getDate()}`;
+    const dow = DOW_KO[d.getDay()];
+
+    const chip = document.createElement('button');
+    chip.className = 'date-chip'+(i===0?' active':'');
+    chip.dataset.date = iso;
+    chip.innerHTML = `<span>${md}</span><span class="dow-lbl">${dow}</span>`;
+    chip.onclick = ()=>selectDate(iso);
+    strip.appendChild(chip);
+
+    const aCount = COURTS.filter(c=>courtStatusByDate(c.id,iso).cls==='avail').length;
+    const fCount  = COURTS.filter(c=>courtStatusByDate(c.id,iso).cls==='few').length;
+    const cChip = document.createElement('button');
+    cChip.className = 'cal-date-chip'+(i===0?' active':'');
+    cChip.dataset.date = iso;
+    cChip.innerHTML = `<span>${md}</span><span class="dow-lbl">${dow}</span>
+      <div class="pip-row">
+        ${aCount>0?`<div class="pip" style="background:var(--avail)"></div>`:''}
+        ${fCount>0?`<div class="pip" style="background:var(--few)"></div>`:''}
+      </div>`;
+    cChip.onclick = ()=>selectCalDate(iso);
+    calStrip.appendChild(cChip);
+
+    if (i===0) selectedDate=iso;
+  }
+  updateDateLabels();
+}
+
+function selectDate(iso) {
+  selectedDate=iso;
+  document.querySelectorAll('.date-chip').forEach(c=>c.classList.toggle('active',c.dataset.date===iso));
+  document.querySelectorAll('.cal-date-chip').forEach(c=>c.classList.toggle('active',c.dataset.date===iso));
+  updateDateLabels();
+  if (currentTab==='map'){renderMapList();updateMapMarkers();}
+  else renderCalGrid();
+}
+function selectCalDate(iso) {
+  selectedDate=iso;
+  document.querySelectorAll('.date-chip').forEach(c=>c.classList.toggle('active',c.dataset.date===iso));
+  document.querySelectorAll('.cal-date-chip').forEach(c=>c.classList.toggle('active',c.dataset.date===iso));
+  updateDateLabels();
+  renderCalGrid();
+}
+function updateDateLabels() {
+  const d = new Date(selectedDate+'T00:00:00');
+  const s = `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 (${DOW_KO[d.getDay()]}요일)`;
+  document.getElementById('mapSideDate').textContent=s;
+  document.getElementById('calTitle').textContent=s;
+}
+
+// ═══════════════════════════════════════
+// TAB
+// ═══════════════════════════════════════
+function switchTab(tab) {
+  currentTab=tab;
+  document.getElementById('tabMap').classList.toggle('active',tab==='map');
+  document.getElementById('tabCal').classList.toggle('active',tab==='cal');
+  document.getElementById('viewMap').classList.toggle('active',tab==='map');
+  document.getElementById('viewCal').classList.toggle('active',tab==='cal');
+  if (tab==='map'){setTimeout(()=>map.invalidateSize(),40);renderMapList();updateMapMarkers();}
+  else renderCalGrid();
+}
+
+// ═══════════════════════════════════════
+// FILTER
+// ═══════════════════════════════════════
+function buildGuFilter() {
+  const sel=document.getElementById('guSelect'), cur=sel.value;
+  while(sel.options.length>1) sel.remove(1);
+  [...new Set(COURTS.map(c=>c.gu))].sort().forEach(gu=>{
+    const o=document.createElement('option'); o.value=gu; o.textContent=gu; sel.appendChild(o);
+  });
+  sel.value=cur;
+}
+function applyFilter() {
+  const q=document.getElementById('searchInput').value.toLowerCase();
+  const gu=document.getElementById('guSelect').value;
+  filteredCourts=COURTS.filter(c=>{
+    return (!q||c.name.toLowerCase().includes(q)||c.gu.includes(q))&&(!gu||c.gu===gu);
+  });
+  COURTS.forEach(c=>{
+    if(!markers[c.id]) return;
+    const show=filteredCourts.some(f=>f.id===c.id);
+    show?(!map.hasLayer(markers[c.id])&&markers[c.id].addTo(map)):(map.hasLayer(markers[c.id])&&map.removeLayer(markers[c.id]));
+  });
+  if(currentTab==='map') renderMapList(); else renderCalGrid();
+}
+function setCalFilter(f,btn) {
+  calFilter=f;
+  document.querySelectorAll('.filter-pill').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCalGrid();
+}
+
+// ═══════════════════════════════════════
+// MAP
+// ═══════════════════════════════════════
+const map=L.map('map',{center:[37.5326,126.9902],zoom:11,zoomControl:false,attributionControl:false});
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:19}).addTo(map);
+L.control.zoom({position:'bottomright'}).addTo(map);
+L.control.attribution({prefix:'© OpenStreetMap · CartoDB'}).addTo(map);
+
+function makeIcon(court,isSel) {
+  const st=courtStatus(court.id), sz=isSel?38:32;
+  return L.divIcon({
+    html:`<div class="court-marker ${st.cls}${isSel?' sel':''}" style="width:${sz}px;height:${sz}px">${st.count>0?st.count:'✕'}</div>`,
+    className:'',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2],
+  });
+}
+function buildMapMarkers() {
+  Object.values(markers).forEach(m=>map.removeLayer(m));
+  Object.keys(markers).forEach(k=>delete markers[k]);
+  COURTS.forEach(court=>{
+    const m=L.marker([court.lat,court.lng],{icon:makeIcon(court,false)})
+      .addTo(map).on('click',()=>selectCourt(court.id,true));
+    markers[court.id]=m;
+  });
+}
+function updateMapMarkers() {
+  COURTS.forEach(court=>{ if(markers[court.id]) markers[court.id].setIcon(makeIcon(court,selectedCourtId===court.id)); });
+}
+function renderMapList() {
+  const list=document.getElementById('mapCourtList');
+  const sorted=[...filteredCourts].sort((a,b)=>courtStatus(b.id).count-courtStatus(a.id).count);
+  document.getElementById('mapCountBadge').textContent=`${sorted.filter(c=>courtStatus(c.id).count>0).length}곳 가능`;
+  document.getElementById('calSub').textContent=`${filteredCourts.length}개 시설`;
+  list.innerHTML='';
+  sorted.forEach((court,idx)=>{
+    const slots=genSlots(court.id,selectedDate), st=courtStatus(court.id);
+    const item=document.createElement('div');
+    item.className='court-item'+(selectedCourtId===court.id?' selected':'');
+    item.style.animationDelay=`${idx*0.025}s`;
+    item.dataset.id=court.id;
+    item.onclick=()=>selectCourt(court.id,true);
+    item.innerHTML=`
+      <div class="ci-top">
+        <div>
+          <div class="ci-name">${court.name}</div>
+          <div class="ci-gu">${court.gu}${court.place?' · '+court.place:''}</div>
+        </div>
+        <span class="badge ${st.cls}" style="font-size:0.65rem">${court.apiStatus||( st.count>0?st.count+'타임':'마감')}</span>
+      </div>
+      <div class="time-slots">${slots.map(s=>`<span class="slot ${s.available?'open':'taken'}">${s.time}</span>`).join('')}</div>`;
+    list.appendChild(item);
+  });
+}
+function selectCourt(id,flyTo) {
+  selectedCourtId=id;
+  const court=COURTS.find(c=>c.id===id); if(!court) return;
+  const slots=genSlots(id,selectedDate), st=courtStatus(id);
+  const avail=slots.filter(s=>s.available).map(s=>s.time);
+  if(flyTo) map.flyTo([court.lat,court.lng],14,{duration:0.7});
+  document.querySelectorAll('.court-item').forEach(el=>el.classList.toggle('selected',parseInt(el.dataset.id)===id));
+  updateMapMarkers();
+  const url=court.svcid?`https://yeyak.seoul.go.kr/web/reservation/selectReservView.do?rsv_svc_id=${court.svcid}`:'https://yeyak.seoul.go.kr';
+  let extra='';
+  if(court.rcpStart) extra+=`<br>📅 ${fmtDate(court.rcpStart)} ~ ${fmtDate(court.rcpEnd)}`;
+  if(court.fee)      extra+=`<br>💰 ${Number(court.fee).toLocaleString()}원~`;
+  document.getElementById('detailPanel').innerHTML=`
+    <h3>${court.name}</h3>
+    <div class="detail-info">📍 ${court.gu}${court.place?' · '+court.place:''}
+      ${st.count>0
+        ?`<br>✅ <strong style="color:var(--avail)">${st.count}타임 예약 가능</strong><br>
+           <span style="font-family:'DM Mono',monospace;font-size:0.71rem;color:var(--avail)">${avail.join(' · ')}</span>`
+        :`<br>❌ <span style="color:var(--full)">선택 날짜 예약 마감</span>`}
+      ${extra}
+    </div>
+    <a class="goto-btn" href="${url}" target="_blank">예약 바로가기 →</a>`;
+  if(markers[id]) markers[id].bindPopup(
+    `<strong>${court.name}</strong><br><span style="color:var(--muted);font-size:0.72rem">${court.gu}</span><br>
+     <span style="color:${st.cls==='avail'?'var(--avail)':st.cls==='few'?'var(--few)':'var(--full)'};font-weight:600">
+       ${court.apiStatus||(st.count>0?st.count+'타임 가능':'마감')}
+     </span>
+     ${avail.length>0?`<br><span style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--muted)">${avail.slice(0,5).join(' · ')}${avail.length>5?'…':''}</span>`:''}`,
+    {maxWidth:220}).openPopup();
+}
+function fmtDate(s){return s&&s.length>=8?`${s.slice(0,4)}.${s.slice(4,6)}.${s.slice(6,8)}`:s;}
+
+// ═══════════════════════════════════════
+// CAL GRID
+// ═══════════════════════════════════════
+function getVisibleSlots(){
+  const from=document.getElementById('timeFrom').value;
+  const to  =document.getElementById('timeTo').value;
+  return TIME_SLOTS.filter(t=>t>=from&&t<=to);
+}
+function renderCalGrid(){
+  const body=document.getElementById('calBody');
+  const header=document.getElementById('calTimeHeader');
+  body.innerHTML='';
+  const visSlots=getVisibleSlots();
+  let courts=calFilter==='avail'?filteredCourts.filter(c=>courtStatus(c.id).count>0):filteredCourts;
+  document.getElementById('calSub').textContent=`${courts.length}개 시설`;
+  header.innerHTML=visSlots.map(t=>`<div class="cal-time-head">${t}</div>`).join('');
+  if(!courts.length){
+    body.innerHTML=`<div style="padding:50px;text-align:center;color:var(--muted);font-size:0.84rem">조건에 맞는 시설이 없습니다</div>`;return;
+  }
+  courts.forEach((court,idx)=>{
+    const allSlots=genSlots(court.id,selectedDate), st=courtStatus(court.id);
+    const pct=(st.count/TIME_SLOTS.length*100).toFixed(0);
+    const bc=st.cls==='avail'?'var(--avail)':st.cls==='few'?'var(--few)':'var(--full)';
+    const row=document.createElement('div');
+    row.className='cal-row'+(selectedCourtId===court.id?' highlight':'');
+    const sHtml=visSlots.map(t=>{
+      const s=allSlots.find(x=>x.time===t);
+      if(!s) return `<div class="cal-slot taken"></div>`;
+      const clickFn=s.available&&court.svcid?`goCourt('${court.svcid}')`:null;
+      return `<div class="cal-slot ${s.available?'open':'taken'}"
+        onmouseenter="showTT(event,'${court.name.replace(/'/g,'')}','${t}',${s.available})"
+        onmouseleave="hideTT()"
+        ${clickFn?`onclick="${clickFn}" title="클릭해서 예약"`:''}>
+        ${s.available?t:''}
+      </div>`;
+    }).join('');
+    row.innerHTML=`
+      <div class="cal-court-label" onclick="selectCourt(${court.id},false);switchTab('map')">
+        <div style="position:relative;padding-bottom:4px">
+          <div class="cal-court-name">${court.name}</div>
+          <div class="cal-court-gu">${court.gu} · <span style="color:${bc};font-weight:600">${st.count>0?st.count+'타임':'마감'}</span></div>
+          <div class="avail-bar" style="background:${bc};width:${pct}%"></div>
+        </div>
+      </div>
+      <div class="cal-slots-row">${sHtml}</div>`;
+    body.appendChild(row);
+  });
+}
+function showTT(e,name,time,avail){
+  const t=document.getElementById('tt');
+  t.style.display='block';
+  t.innerHTML=`<strong>${name}</strong> · ${time}<br><span style="color:${avail?'#4ade80':'#f87171'}">${avail?'✅ 예약 가능':'❌ 마감'}</span>${avail?'<br><span style="opacity:0.55;font-size:0.68rem">클릭하여 예약 →</span>':''}`;
+  t.style.left=(e.clientX+14)+'px'; t.style.top=(e.clientY-12)+'px';
+}
+function hideTT(){document.getElementById('tt').style.display='none';}
+function goCourt(svcid){window.open(`https://yeyak.seoul.go.kr/web/reservation/selectReservView.do?rsv_svc_id=${svcid}`,'_blank');}
+
+// ═══════════════════════════════════════
+// TICK & INIT
+// ═══════════════════════════════════════
+function tick(){
+  const n=new Date();
+  document.getElementById('statusTime').textContent=`${n.getHours().toString().padStart(2,'0')}:${n.getMinutes().toString().padStart(2,'0')} 기준`;
+}
+
+buildDateStrip();
+buildMapMarkers();
+renderMapList();
+tick();
+setInterval(tick,30000);
+loadSeoulAPI();
+</script>
+</body>
+</html>
