@@ -7,8 +7,13 @@
 <meta name="description" content="서울시 공공 테니스장 예약 현황을 실시간으로 확인하세요">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎾</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+if (typeof L === 'undefined') {
+  document.write('<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>');
+}
+</script>
 <style>
 :root {
   --bg:#f0f2f5; --panel:#ffffff; --panel2:#f7f8fa;
@@ -472,10 +477,7 @@ async function loadSeoulAPI(isRetry) {
   document.getElementById('loadingBar').style.display = 'block';
 
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-    const res = await fetch('/api/seoul?keyword=테니스&start=1&end=1000', { signal: controller.signal });
-    clearTimeout(timeout);
+    const res = await fetch('/api/seoul?keyword=테니스&start=1&end=1000');
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const json = await res.json();
     const root = json['ListPublicReservationSport'];
@@ -664,10 +666,6 @@ function applyFilter() {
 }
 
 function setStatusFilter(s, btn) {
-  statusFilter = s;
-  document.querySelectorAll('#statusFilters .filter-pill').forEach(b => b.classList.toggle('active', b.dataset.status === s));
-  applyFilter();
-}(s, btn) {
   statusFilter = s;
   document.querySelectorAll('#statusFilters .filter-pill').forEach(b => b.classList.toggle('active', b.dataset.status === s));
   applyFilter();
