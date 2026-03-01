@@ -28,7 +28,7 @@ if (typeof L === 'undefined') {
   --shadow-md:0 4px 16px rgba(0,0,0,0.1);
 }
 *{margin:0;padding:0;box-sizing:border-box;}
-html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);}
+html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;}
 
 /* TOPBAR */
 .topbar{height:56px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;z-index:200;box-shadow:var(--shadow);}
@@ -71,12 +71,12 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 
 /* VIEWS */
 .views{flex:1;overflow:hidden;display:flex;flex-direction:column;}
-.view{display:none;flex:1;overflow:auto;}
+.view{display:none;flex:1;overflow:hidden;}
 .view.active{display:flex;}
 
 /* MAP VIEW */
 .view-map{flex-direction:row;}
-#map{flex:1;height:100%;}
+#map{flex:1;height:100%;min-height:300px;z-index:1;}
 .map-side{width:380px;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;box-shadow:-2px 0 8px rgba(0,0,0,0.05);}
 .map-side-header{padding:14px 18px 12px;border-bottom:1px solid var(--border);flex-shrink:0;}
 .map-side-title{font-size:0.83rem;font-weight:700;display:flex;justify-content:space-between;align-items:center;}
@@ -108,7 +108,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .goto-btn:hover{background:#1d4ed8;transform:translateY(-1px);}
 
 /* CAL VIEW */
-.view-cal{flex-direction:column;overflow-y:auto;}
+.view-cal{flex-direction:column;overflow:hidden;}
 .cal-toolbar{padding:10px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;background:var(--panel);box-shadow:var(--shadow);}
 .cal-toolbar-left{display:flex;flex-direction:column;flex-shrink:0;}
 .cal-toolbar-title{font-size:0.9rem;font-weight:700;color:var(--text);}
@@ -121,7 +121,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .filter-pill.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
 
 /* Cal cards (new grid layout) */
-.cal-scroll{flex:1;overflow:auto;padding:16px 20px;background:var(--bg);}
+.cal-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 20px;background:var(--bg);}
 .cal-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;}
 .cal-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;transition:all 0.15s;cursor:pointer;position:relative;overflow:hidden;}
 .cal-card:hover{border-color:var(--accent);box-shadow:var(--shadow-md);}
@@ -378,6 +378,7 @@ let selectedCourtId = null;
 let currentTab = 'map';
 let statusFilter = '전체';
 let kwFilter = '전체';
+let kwFilters = [];  // 다중선택 배열
 let favOnly = false;
 let autoRefreshEnabled = true;
 let autoRefreshTimer = null;
@@ -481,9 +482,23 @@ function getKeywords(court) {
 }
 
 function setKwFilter(kw) {
-  kwFilter = kw;
+  if (kw === '전체') {
+    kwFilters = [];
+  } else {
+    var idx = kwFilters.indexOf(kw);
+    if (idx >= 0) {
+      kwFilters.splice(idx, 1);
+    } else {
+      kwFilters.push(kw);
+    }
+  }
+  // UI 업데이트
   document.querySelectorAll('#kwFilters .filter-pill').forEach(function(b) {
-    b.classList.toggle('active', b.dataset.kw === kw);
+    if (b.dataset.kw === '전체') {
+      b.classList.toggle('active', kwFilters.length === 0);
+    } else {
+      b.classList.toggle('active', kwFilters.indexOf(b.dataset.kw) >= 0);
+    }
   });
   applyFilter();
 }
@@ -674,9 +689,13 @@ function applyFilter() {
     if (gu && c.gu !== gu) return false;
     if (statusFilter !== '전체' && c.status !== statusFilter) return false;
     if (favOnly && !favs.includes(c.svcid)) return false;
-    if (kwFilter !== '전체') {
+    if (kwFilters.length > 0) {
       var kws = getKeywords(c);
-      if (kws.indexOf(kwFilter) === -1) return false;
+      var match = false;
+      for (var ki = 0; ki < kwFilters.length; ki++) {
+        if (kws.indexOf(kwFilters[ki]) >= 0) { match = true; break; }
+      }
+      if (!match) return false;
     }
     return true;
   });
@@ -724,8 +743,9 @@ function switchTab(tab) {
   document.getElementById('viewMap').classList.toggle('active', tab === 'map');
   document.getElementById('viewList').classList.toggle('active', tab === 'list');
   if (tab === 'map') {
-    setTimeout(function() { map.invalidateSize(); }, 50);
-    setTimeout(function() { map.invalidateSize(); }, 300);
+    setTimeout(fixMap, 50);
+    setTimeout(fixMap, 300);
+    setTimeout(fixMap, 800);
   }
   renderAll();
   if (typeof updateUrlParams === 'function') updateUrlParams();
@@ -743,21 +763,24 @@ function renderAll() {
 // ═══════════════════════════════════════
 // MAP
 // ═══════════════════════════════════════
-const map = L.map('map', { center: [37.5326, 126.9902], zoom: 11, zoomControl: false, attributionControl: false });
+var mapEl = document.getElementById('map');
+var map = L.map(mapEl, { center: [37.5326, 126.9902], zoom: 11, zoomControl: false, attributionControl: false });
 
-// 타일 서버 (fallback 포함)
-const tileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-L.tileLayer(tileUrl, {
+// OpenStreetMap 타일
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
-  attribution: '© OpenStreetMap'
+  attribution: '© OpenStreetMap contributors'
 }).addTo(map);
 
 L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-// 지도 강제 리사이즈 (초기 로딩 시 크기 0 문제 해결)
-setTimeout(function() { map.invalidateSize(); }, 200);
-setTimeout(function() { map.invalidateSize(); }, 500);
-setTimeout(function() { map.invalidateSize(); }, 1500);
+// 지도 강제 리사이즈
+function fixMap() { if (map) map.invalidateSize(); }
+setTimeout(fixMap, 100);
+setTimeout(fixMap, 300);
+setTimeout(fixMap, 800);
+setTimeout(fixMap, 2000);
+window.addEventListener('resize', fixMap);
 
 function makeIcon(court, isSel) {
   const sz = isSel ? 38 : 30;
