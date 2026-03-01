@@ -1,4 +1,4 @@
-const https = require('https');
+const https = require('http');
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -11,7 +11,7 @@ module.exports = async (req, res) => {
   const start   = req.query.start   || '1';
   const end     = req.query.end     || '1000';
 
-  const url = `https://openapi.seoul.go.kr:8088/${apiKey}/json/ListPublicReservationSport/${start}/${end}/${encodeURIComponent(keyword)}`;
+  const url = `http://openapi.seoul.go.kr:8088/${apiKey}/json/ListPublicReservationSport/${start}/${end}/${encodeURIComponent(keyword)}`;
 
   try {
     const data = await fetchUrl(url);
