@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>서울 테니스 예약 현황</title>
+<meta name="description" content="서울시 공공 테니스장 예약 현황을 실시간으로 확인하세요">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎾</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -16,6 +18,7 @@
   --few:#d97706;   --few-bg:#fef3c7;
   --full:#dc2626;  --full-bg:#fee2e2;
   --accent:#2563eb; --accent-bg:#eff6ff;
+  --info:#0ea5e9;  --info-bg:#e0f2fe;
   --shadow:0 1px 4px rgba(0,0,0,0.08),0 0 0 1px rgba(0,0,0,0.04);
   --shadow-md:0 4px 16px rgba(0,0,0,0.1);
 }
@@ -35,20 +38,31 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .tab-btn:hover{color:var(--text2);}
 .tab-btn.active{background:var(--accent);color:#fff;font-weight:700;box-shadow:0 1px 6px rgba(37,99,235,0.3);}
 
-.date-strip{display:flex;gap:4px;overflow-x:auto;flex:1;scrollbar-width:none;align-items:center;}
-.date-strip::-webkit-scrollbar{display:none;}
-.date-chip{flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding:4px 10px;border-radius:8px;font-size:0.73rem;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--panel);color:var(--muted);transition:all 0.15s;font-family:'Noto Sans KR',sans-serif;line-height:1.25;gap:1px;white-space:nowrap;}
-.date-chip:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg);}
-.date-chip.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;}
-.date-chip .dow-lbl{font-family:'DM Mono',monospace;font-size:0.58rem;opacity:0.7;}
+/* Stats chips */
+.stats-row{display:flex;gap:6px;flex-shrink:0;align-items:center;}
+.stat-chip{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:8px;font-size:0.7rem;font-weight:600;border:1px solid var(--border);background:var(--panel2);cursor:pointer;transition:all 0.15s;white-space:nowrap;font-family:'Noto Sans KR',sans-serif;}
+.stat-chip:hover{border-color:var(--accent);background:var(--accent-bg);}
+.stat-chip.active{border-color:var(--accent);background:var(--accent-bg);color:var(--accent);}
+.stat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.stat-num{font-family:'DM Mono',monospace;font-weight:700;}
 
 .search-wrap{position:relative;flex-shrink:0;}
 .search-wrap::before{content:'🔍';position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:0.75rem;pointer-events:none;z-index:1;}
-.topbar-search{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:6px 12px 6px 30px;color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:0.78rem;outline:none;width:148px;transition:all 0.15s;}
+.topbar-search{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:6px 12px 6px 30px;color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:0.78rem;outline:none;width:160px;transition:all 0.15s;}
 .topbar-search:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,0.1);}
 .topbar-search::placeholder{color:var(--muted);}
 .gu-select{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:0.78rem;outline:none;cursor:pointer;flex-shrink:0;transition:all 0.15s;}
 .gu-select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,0.1);}
+
+.refresh-btn{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:0.72rem;cursor:pointer;color:var(--muted);display:flex;align-items:center;gap:4px;transition:all 0.15s;font-family:'Noto Sans KR',sans-serif;flex-shrink:0;}
+.refresh-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg);}
+.refresh-btn.spinning .refresh-icon{animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.refresh-icon{display:inline-block;font-size:0.8rem;}
+
+.fav-toggle{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:0.72rem;cursor:pointer;color:var(--muted);display:flex;align-items:center;gap:4px;transition:all 0.15s;font-family:'Noto Sans KR',sans-serif;flex-shrink:0;}
+.fav-toggle:hover{border-color:#f59e0b;color:#f59e0b;}
+.fav-toggle.active{border-color:#f59e0b;background:#fffbeb;color:#d97706;font-weight:600;}
 
 /* VIEWS */
 .views{flex:1;overflow:hidden;display:flex;flex-direction:column;}
@@ -58,7 +72,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 /* MAP VIEW */
 .view-map{flex-direction:row;}
 #map{flex:1;height:100%;}
-.map-side{width:360px;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;box-shadow:-2px 0 8px rgba(0,0,0,0.05);}
+.map-side{width:380px;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;box-shadow:-2px 0 8px rgba(0,0,0,0.05);}
 .map-side-header{padding:14px 18px 12px;border-bottom:1px solid var(--border);flex-shrink:0;}
 .map-side-title{font-size:0.83rem;font-weight:700;display:flex;justify-content:space-between;align-items:center;}
 .map-side-date{font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--accent);margin-top:3px;}
@@ -66,101 +80,85 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .legend-item{display:flex;align-items:center;gap:5px;font-size:0.69rem;color:var(--text2);}
 .legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
 .court-list{flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
-.court-item{padding:11px 18px;cursor:pointer;border-bottom:1px solid var(--border);transition:background 0.1s;border-left:3px solid transparent;}
+.court-item{padding:12px 18px;cursor:pointer;border-bottom:1px solid var(--border);transition:all 0.12s;border-left:3px solid transparent;position:relative;}
 .court-item:hover{background:var(--panel2);}
 .court-item.selected{background:var(--accent-bg);border-left-color:var(--accent);}
-.ci-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:7px;}
+.ci-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:5px;}
 .ci-name{font-size:0.82rem;font-weight:600;color:var(--text);line-height:1.3;}
 .ci-gu{font-size:0.68rem;color:var(--muted);margin-top:1px;}
-.ci-count{font-family:'DM Mono',monospace;font-size:0.72rem;font-weight:600;white-space:nowrap;flex-shrink:0;}
-.ci-count.avail{color:var(--avail);} .ci-count.few{color:var(--few);} .ci-count.full{color:var(--full);}
-.time-slots{display:flex;flex-wrap:wrap;gap:3px;}
-.slot{font-family:'DM Mono',monospace;font-size:0.62rem;padding:2px 6px;border-radius:4px;border:1px solid transparent;white-space:nowrap;}
-.slot.open{background:var(--avail-bg);border-color:rgba(22,163,74,0.3);color:var(--avail);}
-.slot.taken{background:#f3f4f6;border-color:#e5e7eb;color:#c9cfd6;text-decoration:line-through;}
-.detail-panel{border-top:1px solid var(--border);padding:14px 18px;flex-shrink:0;background:var(--panel2);min-height:96px;}
-.detail-panel h3{font-size:0.83rem;font-weight:700;margin-bottom:6px;color:var(--text);}
-.detail-info{font-size:0.74rem;color:var(--text2);line-height:1.8;}
-.goto-btn{display:inline-flex;align-items:center;gap:5px;margin-top:10px;background:var(--accent);color:#fff;font-weight:700;font-size:0.77rem;border:none;border-radius:8px;padding:7px 16px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;text-decoration:none;transition:all 0.15s;box-shadow:0 2px 6px rgba(37,99,235,0.3);}
+.ci-meta{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}
+.ci-tag{font-size:0.62rem;padding:2px 7px;border-radius:4px;background:var(--panel2);border:1px solid var(--border);color:var(--text2);white-space:nowrap;}
+.ci-tag.fee{color:var(--accent);border-color:rgba(37,99,235,0.2);background:var(--accent-bg);}
+.ci-tag.free{color:var(--avail);border-color:rgba(22,163,74,0.2);background:var(--avail-bg);}
+
+.fav-star{position:absolute;top:10px;right:14px;font-size:1rem;cursor:pointer;opacity:0.3;transition:all 0.15s;z-index:2;}
+.fav-star:hover{opacity:0.8;transform:scale(1.2);}
+.fav-star.active{opacity:1;color:#f59e0b;}
+
+.detail-panel{border-top:1px solid var(--border);padding:14px 18px;flex-shrink:0;background:var(--panel2);min-height:120px;overflow-y:auto;max-height:240px;}
+.detail-panel h3{font-size:0.85rem;font-weight:700;margin-bottom:8px;color:var(--text);}
+.detail-info{font-size:0.74rem;color:var(--text2);line-height:2;}
+.detail-info strong{color:var(--text);}
+.goto-btn{display:inline-flex;align-items:center;gap:5px;margin-top:10px;background:var(--accent);color:#fff;font-weight:700;font-size:0.77rem;border:none;border-radius:8px;padding:8px 18px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;text-decoration:none;transition:all 0.15s;box-shadow:0 2px 6px rgba(37,99,235,0.3);}
 .goto-btn:hover{background:#1d4ed8;transform:translateY(-1px);}
 
 /* CAL VIEW */
 .view-cal{flex-direction:column;overflow:hidden;}
-
-/* 툴바: 왼쪽 제목, 오른쪽 필터 모음 */
 .cal-toolbar{padding:10px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;background:var(--panel);box-shadow:var(--shadow);}
 .cal-toolbar-left{display:flex;flex-direction:column;flex-shrink:0;}
 .cal-toolbar-title{font-size:0.9rem;font-weight:700;color:var(--text);}
 .cal-toolbar-sub{font-size:0.7rem;color:var(--muted);font-family:'DM Mono',monospace;margin-top:1px;}
-
-/* 오른쪽 필터 영역 */
 .cal-toolbar-right{display:flex;align-items:center;gap:8px;margin-left:auto;}
 
-/* 날짜 칩 (시간표 전용) */
-.cal-date-strip{display:flex;gap:3px;overflow-x:auto;scrollbar-width:none;align-items:center;max-width:400px;}
-.cal-date-strip::-webkit-scrollbar{display:none;}
-.cal-date-chip{flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding:4px 9px;border-radius:8px;font-size:0.7rem;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--panel2);color:var(--muted);transition:all 0.15s;font-family:'Noto Sans KR',sans-serif;line-height:1.25;gap:1px;white-space:nowrap;}
-.cal-date-chip:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg);}
-.cal-date-chip.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;}
-.cal-date-chip .dow-lbl{font-family:'DM Mono',monospace;font-size:0.57rem;opacity:0.65;}
-.cal-date-chip .pip-row{display:flex;gap:2px;margin-top:2px;}
-.cal-date-chip .pip{width:4px;height:4px;border-radius:50%;}
-.cal-date-chip.active .pip{background:rgba(255,255,255,0.6)!important;}
-
-/* 시간 필터 */
-.time-filter{display:flex;align-items:center;gap:5px;flex-shrink:0;}
-.time-lbl{font-size:0.72rem;color:var(--muted);white-space:nowrap;}
-.time-sel{background:var(--panel2);border:1px solid var(--border);border-radius:7px;padding:5px 8px;color:var(--text);font-family:'DM Mono',monospace;font-size:0.72rem;outline:none;cursor:pointer;}
-.time-sel:focus{border-color:var(--accent);}
-
-/* 상태 필터 pills */
 .cal-filters{display:flex;gap:4px;flex-shrink:0;}
 .filter-pill{padding:4px 12px;border-radius:20px;font-size:0.72rem;border:1px solid var(--border);background:var(--panel2);color:var(--muted);cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all 0.15s;white-space:nowrap;}
 .filter-pill:hover{border-color:var(--accent);color:var(--accent);}
 .filter-pill.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;}
 
-/* Grid */
-.cal-scroll{flex:1;overflow:auto;background:var(--bg);}
-.cal-grid-wrap{min-width:860px;}
-.cal-header-row{display:flex;position:sticky;top:0;background:var(--panel);border-bottom:2px solid var(--border);z-index:10;box-shadow:0 1px 4px rgba(0,0,0,0.06);}
-.cal-corner{width:210px;flex-shrink:0;padding:8px 16px;border-right:1px solid var(--border);font-size:0.68rem;color:var(--muted);display:flex;align-items:center;font-family:'DM Mono',monospace;background:var(--panel2);}
-.cal-times-header{flex:1;display:flex;}
-.cal-time-head{flex:1;text-align:center;padding:8px 2px;font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);border-right:1px solid var(--border);}
-.cal-body{display:flex;flex-direction:column;}
-.cal-row{display:flex;align-items:stretch;border-bottom:1px solid var(--border);min-height:52px;background:var(--panel);transition:background 0.1s;}
-.cal-row:hover{background:#fafbff;}
-.cal-row.highlight{background:var(--accent-bg);}
-.cal-row:nth-child(even){background:#fafafa;}
-.cal-row:nth-child(even):hover{background:#f0f4ff;}
-.cal-court-label{width:210px;flex-shrink:0;padding:0 14px;display:flex;flex-direction:column;justify-content:center;border-right:1px solid var(--border);cursor:pointer;transition:background 0.1s;position:relative;}
-.cal-court-label:hover{background:var(--accent-bg);}
-.cal-court-name{font-size:0.78rem;font-weight:600;color:var(--text);line-height:1.3;}
-.cal-court-gu{font-size:0.65rem;color:var(--muted);margin-top:2px;}
-.avail-bar{position:absolute;bottom:0;left:0;height:2px;border-radius:1px;transition:width 0.4s ease;}
-.cal-slots-row{flex:1;display:flex;align-items:center;padding:5px 6px;gap:3px;}
-.cal-slot{flex:1;min-width:0;height:38px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:0.6rem;cursor:pointer;transition:all 0.12s;border:1px solid transparent;white-space:nowrap;overflow:hidden;}
-.cal-slot.open{background:var(--avail-bg);border-color:rgba(22,163,74,0.3);color:var(--avail);font-weight:500;}
-.cal-slot.open:hover{background:#bbf7d0;transform:scaleY(1.06);z-index:2;box-shadow:0 2px 8px rgba(22,163,74,0.2);}
-.cal-slot.taken{background:#f3f4f6;border-color:#e9ebee;color:#d1d5db;position:relative;}
-.cal-slot.taken::after{content:'';position:absolute;width:50%;height:1px;background:rgba(0,0,0,0.12);border-radius:1px;}
+/* Cal cards (new grid layout) */
+.cal-scroll{flex:1;overflow:auto;padding:16px 20px;background:var(--bg);}
+.cal-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;}
+.cal-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;transition:all 0.15s;cursor:pointer;position:relative;overflow:hidden;}
+.cal-card:hover{border-color:var(--accent);box-shadow:var(--shadow-md);}
+.cal-card-accent{position:absolute;top:0;left:0;right:0;height:3px;}
+.cal-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+.cal-card-name{font-size:0.85rem;font-weight:700;color:var(--text);line-height:1.3;flex:1;margin-right:8px;}
+.cal-card-gu{font-size:0.68rem;color:var(--muted);margin-top:2px;}
+.cal-card-body{display:flex;flex-direction:column;gap:6px;}
+.cal-card-row{display:flex;align-items:center;gap:6px;font-size:0.73rem;color:var(--text2);}
+.cal-card-row .icon{width:16px;text-align:center;flex-shrink:0;font-size:0.8rem;}
+.cal-card-row .label{color:var(--muted);min-width:48px;flex-shrink:0;font-weight:500;}
+.cal-card-actions{display:flex;gap:6px;margin-top:10px;}
+.cal-card-btn{flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--text2);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;text-align:center;text-decoration:none;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:4px;}
+.cal-card-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg);}
+.cal-card-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.cal-card-btn.primary:hover{background:#1d4ed8;}
 
 /* Badge */
-.badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:12px;font-family:'DM Mono',monospace;font-size:0.68rem;font-weight:500;}
-.badge.avail{background:var(--avail-bg);color:var(--avail);border:1px solid rgba(22,163,74,0.2);}
-.badge.few{background:var(--few-bg);color:var(--few);border:1px solid rgba(217,119,6,0.2);}
-.badge.full{background:var(--full-bg);color:var(--full);border:1px solid rgba(220,38,38,0.2);}
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:12px;font-family:'Noto Sans KR',sans-serif;font-size:0.68rem;font-weight:600;white-space:nowrap;}
+.badge.접수중{background:var(--avail-bg);color:var(--avail);border:1px solid rgba(22,163,74,0.2);}
+.badge.안내중{background:var(--info-bg);color:var(--info);border:1px solid rgba(14,165,233,0.2);}
+.badge.접수종료{background:var(--full-bg);color:var(--full);border:1px solid rgba(220,38,38,0.2);}
+.badge.예약마감{background:#f3f4f6;color:#6b7280;border:1px solid #e5e7eb;}
+.badge.예약일시중지{background:var(--few-bg);color:var(--few);border:1px solid rgba(217,119,6,0.2);}
 
 /* Tooltip */
 .tt{position:fixed;background:#1f2937;color:#f9fafb;border-radius:7px;padding:7px 11px;font-size:0.74rem;pointer-events:none;z-index:9999;box-shadow:var(--shadow-md);display:none;white-space:nowrap;line-height:1.5;}
 
 /* Statusbar */
-.statusbar{height:26px;background:var(--panel);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:14px;font-family:'DM Mono',monospace;font-size:0.67rem;color:var(--muted);flex-shrink:0;}
+.statusbar{height:28px;background:var(--panel);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:14px;font-family:'DM Mono',monospace;font-size:0.67rem;color:var(--muted);flex-shrink:0;}
 .live-dot{width:6px;height:6px;border-radius:50%;background:var(--avail);animation:pulse 2s infinite;flex-shrink:0;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.35}}
 
-/* Loading bar */
+/* Loading */
 .loading-bar{height:3px;background:linear-gradient(90deg,var(--accent),#60a5fa,var(--accent));background-size:200% 100%;animation:shimmer 1.2s infinite;position:fixed;top:56px;left:0;right:0;z-index:999;display:none;}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* Empty state */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;color:var(--muted);text-align:center;}
+.empty-state .emoji{font-size:2.5rem;margin-bottom:12px;}
+.empty-state .msg{font-size:0.88rem;font-weight:600;margin-bottom:4px;color:var(--text2);}
+.empty-state .sub{font-size:0.76rem;}
 
 /* Leaflet */
 .leaflet-container{background:#e8edf2;font-family:'Noto Sans KR',sans-serif;}
@@ -170,23 +168,66 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .leaflet-popup-close-button{color:var(--muted)!important;top:7px!important;right:9px!important;}
 
 /* Marker */
-.court-marker{display:flex;align-items:center;justify-content:center;border-radius:50%;border:2.5px solid rgba(255,255,255,0.9);font-family:'DM Mono',monospace;font-size:0.65rem;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.25);transition:transform 0.15s;color:#fff;}
+.court-marker{display:flex;align-items:center;justify-content:center;border-radius:50%;border:2.5px solid rgba(255,255,255,0.9);font-family:'DM Mono',monospace;font-size:0.62rem;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.25);transition:transform 0.15s;color:#fff;}
 .court-marker:hover,.court-marker.sel{transform:scale(1.3);box-shadow:0 4px 14px rgba(0,0,0,0.3);}
-.court-marker.avail{background:var(--avail);}
-.court-marker.few{background:var(--few);}
-.court-marker.full{background:var(--full);}
 
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
 
-@media(max-width:768px){
+/* D-Day badge */
+.dday{display:inline-flex;align-items:center;padding:1px 7px;border-radius:8px;font-family:'DM Mono',monospace;font-size:0.62rem;font-weight:600;margin-left:5px;white-space:nowrap;}
+.dday.hot{background:#fef2f2;color:#dc2626;border:1px solid rgba(220,38,38,0.15);animation:pulse 2s infinite;}
+.dday.soon{background:#fffbeb;color:#d97706;border:1px solid rgba(217,119,6,0.15);}
+.dday.ok{background:#f0fdf4;color:#16a34a;border:1px solid rgba(22,163,74,0.15);}
+.dday.past{background:#f3f4f6;color:#9ca3af;border:1px solid rgba(156,163,175,0.15);}
+
+/* Sort selector */
+.sort-select{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:5px 24px 5px 8px;color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:0.72rem;outline:none;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");background-repeat:no-repeat;background-position:right 5px center;background-size:14px;flex-shrink:0;}
+.sort-select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,0.1);}
+
+/* Modal overlay */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);z-index:9000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.25s ease;}
+.modal-overlay.open{opacity:1;pointer-events:auto;}
+.modal{background:var(--panel);border-radius:16px;box-shadow:0 24px 64px rgba(0,0,0,0.25);width:90%;max-width:560px;max-height:85vh;overflow-y:auto;transform:translateY(20px) scale(0.97);transition:transform 0.25s ease;scrollbar-width:thin;}
+.modal-overlay.open .modal{transform:translateY(0) scale(1);}
+.modal-close{position:sticky;top:0;z-index:2;display:flex;justify-content:flex-end;padding:12px 16px 0;}
+.modal-close button{background:var(--panel2);border:1px solid var(--border);border-radius:8px;width:32px;height:32px;font-size:1rem;cursor:pointer;color:var(--muted);display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
+.modal-close button:hover{background:var(--border);color:var(--text);}
+.modal-img{width:100%;max-height:200px;object-fit:cover;border-radius:0;}
+.modal-body{padding:20px 24px 24px;}
+.modal-title{font-size:1.05rem;font-weight:800;color:var(--text);margin-bottom:4px;line-height:1.3;}
+.modal-gu{font-size:0.78rem;color:var(--muted);margin-bottom:16px;}
+.modal-section{margin-bottom:16px;}
+.modal-section-title{font-size:0.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border);}
+.modal-row{display:flex;align-items:flex-start;gap:8px;font-size:0.8rem;color:var(--text2);line-height:1.7;padding:2px 0;}
+.modal-row .icon{flex-shrink:0;width:20px;text-align:center;}
+.modal-row .label{flex-shrink:0;color:var(--muted);font-weight:500;min-width:56px;}
+.modal-row .value{flex:1;word-break:break-all;}
+.modal-desc{font-size:0.78rem;color:var(--text2);line-height:1.7;max-height:120px;overflow-y:auto;background:var(--panel2);padding:10px 14px;border-radius:8px;border:1px solid var(--border);}
+.modal-actions{display:flex;gap:8px;margin-top:18px;}
+.modal-actions a,.modal-actions button{flex:1;text-align:center;padding:10px;border-radius:10px;font-size:0.82rem;font-weight:700;cursor:pointer;transition:all 0.15s;text-decoration:none;font-family:'Noto Sans KR',sans-serif;border:none;}
+.modal-actions .primary{background:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(37,99,235,0.3);}
+.modal-actions .primary:hover{background:#1d4ed8;transform:translateY(-1px);}
+.modal-actions .secondary{background:var(--panel2);color:var(--text2);border:1px solid var(--border);}
+.modal-actions .secondary:hover{background:var(--border);}
+
+/* Toast */
+.toast{position:fixed;bottom:60px;left:50%;transform:translateX(-50%) translateY(20px);background:#1f2937;color:#f9fafb;padding:10px 20px;border-radius:10px;font-size:0.8rem;font-weight:500;z-index:9999;opacity:0;transition:all 0.3s ease;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,0.25);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* Refresh spinning */
+.refresh-btn.spinning .refresh-icon{display:inline-block;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+@media(max-width:900px){
   .map-side{width:100%;max-height:44vh;}
-  .view-map{flex-direction:column;}
-  .cal-grid-wrap{min-width:700px;}
-  .cal-court-label{width:160px;}
-  .topbar-search,.gu-select{display:none;}
-  .cal-date-strip{max-width:260px;}
+  .view-map{flex-direction:column-reverse;}
+  .topbar-search,.gu-select,.stats-row,.v-line:nth-child(n+3){display:none;}
+  .cal-card-grid{grid-template-columns:1fr;}
+  .sort-select{display:none;}
+  .fav-toggle{font-size:0.7rem;padding:4px 8px;}
+  .modal{width:96%;max-height:92vh;}
 }
 </style>
 </head>
@@ -202,18 +243,22 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
   </div>
   <div class="v-line"></div>
   <div class="tab-switcher">
-    <button class="tab-btn active" id="tabMap" onclick="switchTab('map')">🗺️ 지도뷰</button>
-    <button class="tab-btn" id="tabCal" onclick="switchTab('cal')">📅 시간표뷰</button>
+    <button class="tab-btn active" id="tabMap" onclick="switchTab('map')">🗺️ 지도</button>
+    <button class="tab-btn" id="tabCal" onclick="switchTab('list')">📋 목록</button>
   </div>
   <div class="v-line"></div>
-  <div class="date-strip" id="dateStrip"></div>
-  <div class="v-line"></div>
+  <div class="stats-row" id="statsRow"></div>
+  <div style="flex:1"></div>
+  <button class="fav-toggle" id="favToggle" onclick="toggleFavFilter()">⭐ 즐겨찾기</button>
   <div class="search-wrap">
     <input class="topbar-search" type="text" placeholder="시설 검색..." id="searchInput" oninput="applyFilter()">
   </div>
   <select class="gu-select" id="guSelect" onchange="applyFilter()">
     <option value="">전체 구</option>
   </select>
+  <button class="refresh-btn" id="refreshBtn" onclick="loadSeoulAPI()">
+    <span class="refresh-icon">🔄</span> 새로고침
+  </button>
 </div>
 
 <!-- VIEWS -->
@@ -225,18 +270,20 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
     <div class="map-side">
       <div class="map-side-header">
         <div class="map-side-title">
-          예약 가능 시설
-          <span id="mapCountBadge" class="badge avail">-</span>
+          테니스장 목록
+          <span id="mapCountBadge" class="badge 접수중">-</span>
         </div>
         <div class="map-side-date" id="mapSideDate"></div>
       </div>
       <div class="legend">
-        <div class="legend-item"><div class="legend-dot" style="background:var(--avail)"></div>여유 (5타임+)</div>
-        <div class="legend-item"><div class="legend-dot" style="background:var(--few)"></div>임박 (1~4)</div>
-        <div class="legend-item"><div class="legend-dot" style="background:var(--full)"></div>마감</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--avail)"></div>접수중</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--info)"></div>안내중</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--few)"></div>일시중지</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--full)"></div>접수종료</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#9ca3af"></div>마감</div>
       </div>
       <div class="court-list" id="mapCourtList">
-        <div style="padding:32px;text-align:center;color:var(--muted);font-size:0.83rem;">데이터 불러오는 중...</div>
+        <div class="empty-state"><span class="emoji">⏳</span><span class="msg">데이터 불러오는 중...</span></div>
       </div>
       <div class="detail-panel" id="detailPanel">
         <div class="detail-info" style="color:var(--muted)">← 시설을 클릭하면 상세 정보가 표시됩니다</div>
@@ -244,62 +291,35 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
     </div>
   </div>
 
-  <!-- ② 시간표뷰 -->
-  <div class="view view-cal" id="viewCal">
+  <!-- ② 목록뷰 -->
+  <div class="view view-cal" id="viewList">
     <div class="cal-toolbar">
-      <!-- 왼쪽: 제목 + 서브 -->
       <div class="cal-toolbar-left">
-        <span class="cal-toolbar-title" id="calTitle">날짜를 선택하세요</span>
-        <span class="cal-toolbar-sub" id="calSub">0개 시설</span>
+        <span class="cal-toolbar-title" id="listTitle">전체 시설</span>
+        <span class="cal-toolbar-sub" id="listSub">0개 시설</span>
       </div>
-
-      <!-- 오른쪽: 날짜칩 + 시간필터 + 상태필터 -->
       <div class="cal-toolbar-right">
-
-        <!-- 날짜 필터 -->
-        <div class="cal-date-strip" id="calDateStrip"></div>
-
-        <div class="v-line" style="height:22px;"></div>
-
-        <!-- 시간 범위 필터 -->
-        <div class="time-filter">
-          <span class="time-lbl">⏰</span>
-          <select class="time-sel" id="timeFrom" onchange="renderCalGrid()">
-            <option value="06:00">06시~</option>
-            <option value="09:00">09시~</option>
-            <option value="12:00" selected>12시~</option>
-            <option value="15:00">15시~</option>
-            <option value="18:00">18시~</option>
-          </select>
-          <span class="time-lbl">~</span>
-          <select class="time-sel" id="timeTo" onchange="renderCalGrid()">
-            <option value="12:00">~12시</option>
-            <option value="15:00">~15시</option>
-            <option value="18:00">~18시</option>
-            <option value="21:00" selected>~21시</option>
-          </select>
+        <div class="cal-filters" id="statusFilters">
+          <button class="filter-pill active" data-status="전체" onclick="setStatusFilter('전체',this)">전체</button>
+          <button class="filter-pill" data-status="접수중" onclick="setStatusFilter('접수중',this)">🟢 접수중</button>
+          <button class="filter-pill" data-status="안내중" onclick="setStatusFilter('안내중',this)">🔵 안내중</button>
+          <button class="filter-pill" data-status="접수종료" onclick="setStatusFilter('접수종료',this)">🔴 접수종료</button>
+          <button class="filter-pill" data-status="예약마감" onclick="setStatusFilter('예약마감',this)">⚫ 예약마감</button>
         </div>
-
-        <div class="v-line" style="height:22px;"></div>
-
-        <!-- 상태 필터 -->
-        <div class="cal-filters">
-          <button class="filter-pill active" onclick="setCalFilter('all',this)">전체</button>
-          <button class="filter-pill" onclick="setCalFilter('avail',this)">예약가능만</button>
-        </div>
-
+        <select class="gu-select" id="listGuSelect" onchange="applyFilter()" style="margin-left:8px;">
+          <option value="">전체 구</option>
+        </select>
+        <select class="sort-select" id="sortSelect" onchange="applyFilter()" style="margin-left:6px;">
+          <option value="status">상태순</option>
+          <option value="name">이름순</option>
+          <option value="rcpEnd">접수마감 임박순</option>
+          <option value="useStart">이용시작 빠른순</option>
+        </select>
       </div>
     </div>
-
-    <div class="cal-scroll">
-      <div class="cal-grid-wrap">
-        <div class="cal-header-row">
-          <div class="cal-corner">시설 / 시간대</div>
-          <div class="cal-times-header" id="calTimeHeader"></div>
-        </div>
-        <div id="calBody">
-          <div style="padding:50px;text-align:center;color:var(--muted);font-size:0.84rem;">데이터 불러오는 중...</div>
-        </div>
+    <div class="cal-scroll" id="listScroll">
+      <div class="cal-card-grid" id="listGrid">
+        <div class="empty-state"><span class="emoji">⏳</span><span class="msg">데이터 불러오는 중...</span></div>
       </div>
     </div>
   </div>
@@ -309,40 +329,39 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 <!-- Tooltip -->
 <div class="tt" id="tt"></div>
 
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" id="modalContent" onclick="event.stopPropagation()">
+    <div class="modal-close"><button onclick="closeModal()">✕</button></div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
 <!-- STATUSBAR -->
 <div class="statusbar">
-  <div class="live-dot"></div>
+  <div class="live-dot" id="liveDot"></div>
   <span>서울시 공공서비스예약</span>
   <span id="statusTime"></span>
+  <span id="autoRefresh" style="cursor:pointer" onclick="toggleAutoRefresh()" title="자동 새로고침 ON/OFF">⟳ 자동갱신 5분</span>
   <span id="apiStatus" style="margin-left:auto"></span>
 </div>
 
 <script>
 // ═══════════════════════════════════════
-// DATA
+// STATE
 // ═══════════════════════════════════════
-const BASE_COURTS = [
-  {id:1, name:'잠실종합운동장 테니스장', gu:'송파구',   lat:37.5131,lng:127.0733,svcid:'S220310172740589179'},
-  {id:2, name:'서울숲 테니스장',          gu:'성동구',   lat:37.5447,lng:127.0374,svcid:'S201129093238129783'},
-  {id:3, name:'보라매공원 테니스장',       gu:'동작구',   lat:37.4924,lng:126.9226,svcid:''},
-  {id:4, name:'강동구민체육센터 테니스',   gu:'강동구',   lat:37.5298,lng:127.1238,svcid:''},
-  {id:5, name:'여의도한강공원 테니스장',   gu:'영등포구', lat:37.5285,lng:126.9326,svcid:''},
-  {id:6, name:'뚝섬한강공원 테니스장',    gu:'광진구',   lat:37.5298,lng:127.0667,svcid:''},
-  {id:7, name:'반포한강공원 테니스장',    gu:'서초구',   lat:37.5072,lng:126.9963,svcid:''},
-  {id:8, name:'이촌한강공원 테니스장',    gu:'용산구',   lat:37.5178,lng:126.9638,svcid:''},
-  {id:9, name:'노원구 공릉 테니스장',     gu:'노원구',   lat:37.6296,lng:127.0744,svcid:''},
-  {id:10,name:'은평구민체육센터 테니스',  gu:'은평구',   lat:37.6023,lng:126.9228,svcid:''},
-  {id:11,name:'마포 망원 테니스장',       gu:'마포구',   lat:37.5562,lng:126.9032,svcid:''},
-  {id:12,name:'도봉구 초안산 테니스장',   gu:'도봉구',   lat:37.6544,lng:127.0447,svcid:''},
-  {id:13,name:'성북구 정릉 테니스장',     gu:'성북구',   lat:37.6002,lng:127.0011,svcid:''},
-  {id:14,name:'구로구 고척 테니스장',     gu:'구로구',   lat:37.4998,lng:126.8672,svcid:''},
-  {id:15,name:'양천구 목동 테니스장',     gu:'양천구',   lat:37.5258,lng:126.8766,svcid:''},
-  {id:16,name:'관악구 낙성대 테니스장',   gu:'관악구',   lat:37.4773,lng:126.9543,svcid:''},
-  {id:17,name:'강서구 방화 테니스장',     gu:'강서구',   lat:37.5705,lng:126.8019,svcid:''},
-  {id:18,name:'서초구 양재 테니스장',     gu:'서초구',   lat:37.4698,lng:127.0337,svcid:''},
-  {id:19,name:'강남구 대치 테니스장',     gu:'강남구',   lat:37.4966,lng:127.0620,svcid:''},
-  {id:20,name:'중랑구 용마 테니스장',     gu:'중랑구',   lat:37.5802,lng:127.0805,svcid:''},
-];
+let COURTS = [];           // API에서 받은 전체 데이터
+let filteredCourts = [];   // 필터 적용 후
+let selectedCourtId = null;
+let currentTab = 'map';
+let statusFilter = '전체';
+let favOnly = false;
+let autoRefreshEnabled = true;
+let autoRefreshTimer = null;
+const markers = {};
 
 const GU_COORDS = {
   '종로구':{lat:37.5730,lng:126.9794},'중구':{lat:37.5636,lng:126.9976},'용산구':{lat:37.5384,lng:126.9654},
@@ -356,356 +375,686 @@ const GU_COORDS = {
   '강동구':{lat:37.5301,lng:127.1238},
 };
 
-const TIME_SLOTS = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'];
-const DOW_KO = ['일','월','화','수','목','금','토'];
-
-let COURTS = [...BASE_COURTS];
-let filteredCourts = [...COURTS];
-let selectedDate = '';
-let selectedCourtId = null;
-let currentTab = 'map';
-let calFilter = 'all';
-const markers = {};
+// 위치 하드코딩 (API에 좌표가 없으므로)
+const KNOWN_LOCS = {
+  '잠실': {lat:37.5131,lng:127.0733}, '서울숲': {lat:37.5447,lng:127.0374},
+  '보라매': {lat:37.4924,lng:126.9226}, '여의도': {lat:37.5285,lng:126.9326},
+  '뚝섬': {lat:37.5298,lng:127.0667}, '반포': {lat:37.5072,lng:126.9963},
+  '이촌': {lat:37.5178,lng:126.9638}, '망원': {lat:37.5562,lng:126.9032},
+  '올림픽공원': {lat:37.5208,lng:127.1214}, '목동': {lat:37.5258,lng:126.8766},
+  '양재': {lat:37.4698,lng:127.0337}, '대치': {lat:37.4966,lng:127.0620},
+  '난지': {lat:37.5672,lng:126.8724}, '잠원': {lat:37.5118,lng:127.0082},
+  '광나루': {lat:37.5453,lng:127.1033}, '천호': {lat:37.5381,lng:127.1266},
+  '고척': {lat:37.4998,lng:126.8672}, '낙성대': {lat:37.4773,lng:126.9543},
+  '방화': {lat:37.5705,lng:126.8019}, '공릉': {lat:37.6296,lng:127.0744},
+  '정릉': {lat:37.6002,lng:127.0011}, '초안산': {lat:37.6544,lng:127.0447},
+  '월드컵': {lat:37.5683,lng:126.8973}, '용마': {lat:37.5802,lng:127.0805},
+  '마곡': {lat:37.5602,lng:126.8277}, '중계': {lat:37.6420,lng:127.0680},
+  '상암': {lat:37.5773,lng:126.8904}, '한강': {lat:37.5200,lng:126.9600},
+};
 
 // ═══════════════════════════════════════
-// SLOTS
+// FAVORITES (localStorage)
 // ═══════════════════════════════════════
-function genSlots(courtId, dateStr) {
-  const seed = courtId * 31 + parseInt(dateStr.replace(/-/g,'').slice(-5));
-  const rng = n => Math.sin(seed*n*127.1+n*311.7)*0.5+0.5;
-  return TIME_SLOTS.map((t,i) => ({time:t, available:rng(i+1)>0.4}));
+function getFavs() {
+  try { return JSON.parse(localStorage.getItem('tennis_favs') || '[]'); } catch(e) { return []; }
+}
+function setFavs(arr) { localStorage.setItem('tennis_favs', JSON.stringify(arr)); }
+function isFav(svcid) { return getFavs().includes(svcid); }
+function toggleFav(svcid, e) {
+  if (e) { e.stopPropagation(); e.preventDefault(); }
+  let favs = getFavs();
+  if (favs.includes(svcid)) favs = favs.filter(f => f !== svcid);
+  else favs.push(svcid);
+  setFavs(favs);
+  renderAll();
+}
+function toggleFavFilter() {
+  favOnly = !favOnly;
+  document.getElementById('favToggle').classList.toggle('active', favOnly);
+  applyFilter();
 }
 
-function courtStatusByDate(courtId, dateStr) {
-  const court = COURTS.find(c=>c.id===courtId);
-  if (court?.apiStatus && dateStr===selectedDate) {
-    const s = court.apiStatus;
-    if (s==='접수중') return {cls:'avail',count:8,label:'접수중'};
-    if (s==='안내중') return {cls:'few',count:3,label:'안내중'};
-    return {cls:'full',count:0,label:s};
+// ═══════════════════════════════════════
+// STATUS HELPERS
+// ═══════════════════════════════════════
+function statusColor(s) {
+  if (s === '접수중') return 'var(--avail)';
+  if (s === '안내중') return 'var(--info)';
+  if (s === '예약일시중지') return 'var(--few)';
+  if (s === '접수종료') return 'var(--full)';
+  return '#9ca3af';
+}
+function statusCls(s) {
+  if (s === '접수중') return 'avail';
+  if (s === '안내중') return 'info';
+  if (s === '예약일시중지') return 'few';
+  if (s === '접수종료') return 'full';
+  return 'closed';
+}
+function fmtDate(s) {
+  if (!s || s.length < 8) return '-';
+  const clean = s.replace(/[^0-9]/g, '');
+  if (clean.length >= 8) return `${clean.slice(0,4)}.${clean.slice(4,6)}.${clean.slice(6,8)}`;
+  return s;
+}
+function fmtPrice(v) {
+  if (!v || v === '0') return '무료';
+  const n = parseInt(v);
+  return isNaN(n) || n === 0 ? '무료' : n.toLocaleString() + '원';
+}
+
+// ═══════════════════════════════════════
+// COORD RESOLVER
+// ═══════════════════════════════════════
+function resolveCoord(court) {
+  // 이름에서 알려진 위치 매칭
+  for (const [key, loc] of Object.entries(KNOWN_LOCS)) {
+    if (court.name.includes(key) || (court.place && court.place.includes(key))) {
+      return { lat: loc.lat + (Math.random()-0.5)*0.003, lng: loc.lng + (Math.random()-0.5)*0.003 };
+    }
   }
-  const slots = genSlots(courtId, dateStr);
-  const n = slots.filter(s=>s.available).length;
-  if (n===0) return {cls:'full',count:0,label:'마감'};
-  if (n<=4)  return {cls:'few',count:n,label:'임박'};
-  return           {cls:'avail',count:n,label:'여유'};
+  // 구 좌표 기반 fallback
+  const gc = GU_COORDS[court.gu];
+  if (gc) return { lat: gc.lat + (Math.random()-0.5)*0.015, lng: gc.lng + (Math.random()-0.5)*0.015 };
+  return { lat: 37.5326 + (Math.random()-0.5)*0.08, lng: 126.9902 + (Math.random()-0.5)*0.08 };
 }
-function courtStatus(id) { return courtStatusByDate(id, selectedDate); }
 
 // ═══════════════════════════════════════
 // SEOUL API
 // ═══════════════════════════════════════
-async function loadSeoulAPI() {
-  document.getElementById('loadingBar').style.display='block';
+let apiRetryCount = 0;
+const MAX_RETRIES = 2;
+
+async function loadSeoulAPI(isRetry) {
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('spinning');
+  document.getElementById('loadingBar').style.display = 'block';
+
   try {
-    // Vercel API Route 프록시 경로 사용 (CORS 해결 + 실시간 데이터)
-    const res = await fetch('/api/seoul?keyword=테니스&start=1&end=1000');
-    if (!res.ok) throw new Error('HTTP '+res.status);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    const res = await fetch('/api/seoul?keyword=테니스&start=1&end=1000', { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const json = await res.json();
     const root = json['ListPublicReservationSport'];
-    if (!root || root.RESULT?.CODE !== 'INFO-000') throw new Error('API 오류');
-    const rows = (root.row||[]).filter(r=>(r.SVCNM||'').includes('테니스')||(r.MINCLASSNM||'').includes('테니스'));
+
+    if (!root || root.RESULT?.CODE !== 'INFO-000') {
+      throw new Error(root?.RESULT?.MESSAGE || 'API 오류');
+    }
+
+    const rows = (root.row || []).filter(r =>
+      (r.SVCNM || '').includes('테니스') ||
+      (r.MINCLASSNM || '').includes('테니스') ||
+      (r.MAXCLASSNM || '').includes('테니스')
+    );
+
     if (rows.length > 0) {
-      COURTS = rows.map((r,i)=>{
-        const gu = r.AREANM||'';
-        const gc = GU_COORDS[gu]||{lat:37.5326+(Math.random()-0.5)*0.15,lng:126.9902+(Math.random()-0.5)*0.15};
-        const base = BASE_COURTS.find(b=>b.name.includes((r.SVCNM||'').slice(0,4))||(r.SVCNM||'').includes(b.name.slice(0,4)));
-        return {
-          id:i+1, name:r.SVCNM||'테니스장', gu,
-          lat: base?base.lat:gc.lat+(Math.random()-0.5)*0.02,
-          lng: base?base.lng:gc.lng+(Math.random()-0.5)*0.02,
-          svcid:r.SVCID||'', apiStatus:r.SVCSTATNM||'',
-          rcpStart:r.RCPBGNDT||'', rcpEnd:r.RCPENDDT||'',
-          fee:r.V_MIN||'', place:r.PLACENM||'',
+      COURTS = rows.map((r, i) => {
+        const court = {
+          id: i + 1,
+          svcid: r.SVCID || '',
+          name: r.SVCNM || '테니스장',
+          gu: r.AREANM || '',
+          place: r.PLACENM || '',
+          status: r.SVCSTATNM || '',
+          payType: r.PAYATNM || '',
+          useTgtInfo: r.USETGTINFO || '',
+          svcUrl: r.SVCURL || '',
+          imgUrl: r.IMGURL || '',
+          telNo: r.TELNO || '',
+          dtlCont: r.DTLCONT || '',
+          useStartDt: r.V_MIN || '',
+          useEndDt: r.V_MAX || '',
+          rcpStart: r.RCPTBGNDT || r.RCPBGNDT || '',
+          rcpEnd: r.RCPTENDDT || r.RCPENDDT || '',
+          maxClass: r.MAXCLASSNM || '',
+          minClass: r.MINCLASSNM || '',
+          x: parseFloat(r.X) || 0,
+          y: parseFloat(r.Y) || 0,
         };
+        if (court.x > 0 && court.y > 0) {
+          court.lat = court.y;
+          court.lng = court.x;
+        } else {
+          const c = resolveCoord(court);
+          court.lat = c.lat;
+          court.lng = c.lng;
+        }
+        court.dday = calcDday(court);
+        return court;
       });
-      setApiStatus('🟢 실시간 연결됨', true);
-    } else throw new Error('데이터 없음');
-  } catch(e) {
+
+      apiRetryCount = 0;
+      setApiStatus(`🟢 실시간 · ${rows.length}건`, true);
+      showToast(`✅ ${rows.length}개 시설 데이터 갱신 완료`);
+    } else {
+      throw new Error('테니스 데이터 없음');
+    }
+  } catch (e) {
     console.warn('API 실패:', e.message);
-    COURTS = [...BASE_COURTS];
-    setApiStatus('🟡 샘플 데이터', false);
+    if (!isRetry && apiRetryCount < MAX_RETRIES) {
+      apiRetryCount++;
+      showToast(`⏳ 재시도 중 (${apiRetryCount}/${MAX_RETRIES})...`);
+      document.getElementById('loadingBar').style.display = 'none';
+      btn.classList.remove('spinning');
+      setTimeout(() => loadSeoulAPI(true), 2000);
+      return;
+    }
+    if (COURTS.length === 0) {
+      COURTS = getSampleData();
+    }
+    COURTS.forEach(c => c.dday = calcDday(c));
+    setApiStatus('🟡 ' + (COURTS.length > 0 ? '샘플 데이터' : '오류'), false);
+    showToast(`⚠️ API 연결 실패 — ${e.message}`);
   }
-  document.getElementById('loadingBar').style.display='none';
-  filteredCourts = [...COURTS];
+
+  document.getElementById('loadingBar').style.display = 'none';
+  btn.classList.remove('spinning');
+
   buildGuFilter();
-  buildMapMarkers();
-  renderMapList();
-  updateMapMarkers();
-  buildDateStrip(); // pip 업데이트
-  if (currentTab==='cal') renderCalGrid();
+  applyFilter();
+  renderAll();
+  updateStats();
+  scheduleAutoRefresh();
 }
 
 function setApiStatus(msg, ok) {
   document.getElementById('apiStatus').innerHTML =
     `<span style="display:inline-flex;align-items:center;gap:4px;padding:1px 9px;border-radius:10px;font-size:0.65rem;
-      background:${ok?'var(--avail-bg)':'var(--few-bg)'};
-      color:${ok?'var(--avail)':'var(--few)'};
-      border:1px solid ${ok?'rgba(22,163,74,0.2)':'rgba(217,119,6,0.2)'}">
-      ${msg}
-    </span>`;
+      background:${ok ? 'var(--avail-bg)' : 'var(--few-bg)'};
+      color:${ok ? 'var(--avail)' : 'var(--few)'};
+      border:1px solid ${ok ? 'rgba(22,163,74,0.2)' : 'rgba(217,119,6,0.2)'}">${msg}</span>`;
+  document.getElementById('liveDot').style.background = ok ? 'var(--avail)' : 'var(--few)';
 }
 
 // ═══════════════════════════════════════
-// DATE STRIP
+// AUTO REFRESH
 // ═══════════════════════════════════════
-function buildDateStrip() {
-  const strip = document.getElementById('dateStrip');
-  const calStrip = document.getElementById('calDateStrip');
-  const today = new Date();
-  strip.innerHTML=''; calStrip.innerHTML='';
-
-  for (let i=0;i<14;i++) {
-    const d = new Date(today); d.setDate(today.getDate()+i);
-    const iso = d.toISOString().slice(0,10);
-    const md  = `${d.getMonth()+1}/${d.getDate()}`;
-    const dow = DOW_KO[d.getDay()];
-
-    const chip = document.createElement('button');
-    chip.className = 'date-chip'+(i===0?' active':'');
-    chip.dataset.date = iso;
-    chip.innerHTML = `<span>${md}</span><span class="dow-lbl">${dow}</span>`;
-    chip.onclick = ()=>selectDate(iso);
-    strip.appendChild(chip);
-
-    const aCount = COURTS.filter(c=>courtStatusByDate(c.id,iso).cls==='avail').length;
-    const fCount  = COURTS.filter(c=>courtStatusByDate(c.id,iso).cls==='few').length;
-    const cChip = document.createElement('button');
-    cChip.className = 'cal-date-chip'+(i===0?' active':'');
-    cChip.dataset.date = iso;
-    cChip.innerHTML = `<span>${md}</span><span class="dow-lbl">${dow}</span>
-      <div class="pip-row">
-        ${aCount>0?`<div class="pip" style="background:var(--avail)"></div>`:''}
-        ${fCount>0?`<div class="pip" style="background:var(--few)"></div>`:''}
-      </div>`;
-    cChip.onclick = ()=>selectCalDate(iso);
-    calStrip.appendChild(cChip);
-
-    if (i===0) selectedDate=iso;
+function scheduleAutoRefresh() {
+  if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+  if (autoRefreshEnabled) {
+    autoRefreshTimer = setInterval(loadSeoulAPI, 5 * 60 * 1000); // 5분
   }
-  updateDateLabels();
 }
-
-function selectDate(iso) {
-  selectedDate=iso;
-  document.querySelectorAll('.date-chip').forEach(c=>c.classList.toggle('active',c.dataset.date===iso));
-  document.querySelectorAll('.cal-date-chip').forEach(c=>c.classList.toggle('active',c.dataset.date===iso));
-  updateDateLabels();
-  if (currentTab==='map'){renderMapList();updateMapMarkers();}
-  else renderCalGrid();
-}
-function selectCalDate(iso) {
-  selectedDate=iso;
-  document.querySelectorAll('.date-chip').forEach(c=>c.classList.toggle('active',c.dataset.date===iso));
-  document.querySelectorAll('.cal-date-chip').forEach(c=>c.classList.toggle('active',c.dataset.date===iso));
-  updateDateLabels();
-  renderCalGrid();
-}
-function updateDateLabels() {
-  const d = new Date(selectedDate+'T00:00:00');
-  const s = `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 (${DOW_KO[d.getDay()]}요일)`;
-  document.getElementById('mapSideDate').textContent=s;
-  document.getElementById('calTitle').textContent=s;
+function toggleAutoRefresh() {
+  autoRefreshEnabled = !autoRefreshEnabled;
+  document.getElementById('autoRefresh').textContent = autoRefreshEnabled ? '⟳ 자동갱신 5분' : '⟳ 자동갱신 OFF';
+  document.getElementById('autoRefresh').style.opacity = autoRefreshEnabled ? 1 : 0.4;
+  scheduleAutoRefresh();
 }
 
 // ═══════════════════════════════════════
-// TAB
+// STATS
 // ═══════════════════════════════════════
-function switchTab(tab) {
-  currentTab=tab;
-  document.getElementById('tabMap').classList.toggle('active',tab==='map');
-  document.getElementById('tabCal').classList.toggle('active',tab==='cal');
-  document.getElementById('viewMap').classList.toggle('active',tab==='map');
-  document.getElementById('viewCal').classList.toggle('active',tab==='cal');
-  if (tab==='map'){setTimeout(()=>map.invalidateSize(),40);renderMapList();updateMapMarkers();}
-  else renderCalGrid();
+function updateStats() {
+  const row = document.getElementById('statsRow');
+  const counts = {};
+  COURTS.forEach(c => { counts[c.status] = (counts[c.status] || 0) + 1; });
+
+  const items = [
+    { label: '전체', count: COURTS.length, color: 'var(--accent)' },
+    { label: '접수중', count: counts['접수중'] || 0, color: 'var(--avail)' },
+    { label: '안내중', count: counts['안내중'] || 0, color: 'var(--info)' },
+    { label: '접수종료', count: counts['접수종료'] || 0, color: 'var(--full)' },
+  ];
+
+  row.innerHTML = items.map(s =>
+    `<div class="stat-chip ${statusFilter === s.label ? 'active' : ''}" onclick="setStatusFilter('${s.label}',null)" title="${s.label} 필터">
+      <div class="stat-dot" style="background:${s.color}"></div>
+      <span>${s.label}</span>
+      <span class="stat-num">${s.count}</span>
+    </div>`
+  ).join('');
 }
 
 // ═══════════════════════════════════════
 // FILTER
 // ═══════════════════════════════════════
 function buildGuFilter() {
-  const sel=document.getElementById('guSelect'), cur=sel.value;
-  while(sel.options.length>1) sel.remove(1);
-  [...new Set(COURTS.map(c=>c.gu))].sort().forEach(gu=>{
-    const o=document.createElement('option'); o.value=gu; o.textContent=gu; sel.appendChild(o);
+  const gus = [...new Set(COURTS.map(c => c.gu))].sort();
+  ['guSelect', 'listGuSelect'].forEach(id => {
+    const sel = document.getElementById(id);
+    const cur = sel.value;
+    while (sel.options.length > 1) sel.remove(1);
+    gus.forEach(gu => { const o = document.createElement('option'); o.value = gu; o.textContent = gu; sel.appendChild(o); });
+    sel.value = cur;
   });
-  sel.value=cur;
 }
+
 function applyFilter() {
-  const q=document.getElementById('searchInput').value.toLowerCase();
-  const gu=document.getElementById('guSelect').value;
-  filteredCourts=COURTS.filter(c=>{
-    return (!q||c.name.toLowerCase().includes(q)||c.gu.includes(q))&&(!gu||c.gu===gu);
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const gu = document.getElementById('guSelect').value || document.getElementById('listGuSelect').value;
+  const favs = getFavs();
+
+  filteredCourts = COURTS.filter(c => {
+    if (q && !c.name.toLowerCase().includes(q) && !c.gu.includes(q) && !c.place.toLowerCase().includes(q)) return false;
+    if (gu && c.gu !== gu) return false;
+    if (statusFilter !== '전체' && c.status !== statusFilter) return false;
+    if (favOnly && !favs.includes(c.svcid)) return false;
+    return true;
   });
-  COURTS.forEach(c=>{
-    if(!markers[c.id]) return;
-    const show=filteredCourts.some(f=>f.id===c.id);
-    show?(!map.hasLayer(markers[c.id])&&markers[c.id].addTo(map)):(map.hasLayer(markers[c.id])&&map.removeLayer(markers[c.id]));
+
+  // 정렬: sortSelect 기준
+  const sortBy = document.getElementById('sortSelect')?.value || 'status';
+  const statusOrder = { '접수중': 0, '안내중': 1, '예약일시중지': 2, '접수종료': 3, '예약마감': 4 };
+
+  filteredCourts.sort((a, b) => {
+    if (sortBy === 'status') return (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9);
+    if (sortBy === 'name') return a.name.localeCompare(b.name);
+    if (sortBy === 'rcpEnd') {
+      // 접수마감 임박순 (접수중만 위로, D-Day 가까운 순)
+      const aAccepting = a.status === '접수중' ? 0 : 1;
+      const bAccepting = b.status === '접수중' ? 0 : 1;
+      if (aAccepting !== bAccepting) return aAccepting - bAccepting;
+      const aD = a.dday ?? 999, bD = b.dday ?? 999;
+      return aD - bD;
+    }
+    if (sortBy === 'useStart') {
+      const aD = a.useStartDt || 'z', bD = b.useStartDt || 'z';
+      return aD.localeCompare(bD);
+    }
+    return 0;
   });
-  if(currentTab==='map') renderMapList(); else renderCalGrid();
+
+  renderAll();
+  updateStats();
+  if (typeof updateUrlParams === 'function') updateUrlParams();
 }
-function setCalFilter(f,btn) {
-  calFilter=f;
-  document.querySelectorAll('.filter-pill').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  renderCalGrid();
+
+function setStatusFilter(s, btn) {
+  statusFilter = s;
+  document.querySelectorAll('#statusFilters .filter-pill').forEach(b => b.classList.toggle('active', b.dataset.status === s));
+  applyFilter();
+}(s, btn) {
+  statusFilter = s;
+  document.querySelectorAll('#statusFilters .filter-pill').forEach(b => b.classList.toggle('active', b.dataset.status === s));
+  applyFilter();
+}
+
+// ═══════════════════════════════════════
+// TAB
+// ═══════════════════════════════════════
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tabMap').classList.toggle('active', tab === 'map');
+  document.getElementById('tabCal').classList.toggle('active', tab === 'list');
+  document.getElementById('viewMap').classList.toggle('active', tab === 'map');
+  document.getElementById('viewList').classList.toggle('active', tab === 'list');
+  if (tab === 'map') setTimeout(() => map.invalidateSize(), 50);
+  renderAll();
+  if (typeof updateUrlParams === 'function') updateUrlParams();
+}
+
+// ═══════════════════════════════════════
+// RENDER ALL
+// ═══════════════════════════════════════
+function renderAll() {
+  renderMapList();
+  renderMapMarkers();
+  renderListView();
 }
 
 // ═══════════════════════════════════════
 // MAP
 // ═══════════════════════════════════════
-const map=L.map('map',{center:[37.5326,126.9902],zoom:11,zoomControl:false,attributionControl:false});
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:19}).addTo(map);
-L.control.zoom({position:'bottomright'}).addTo(map);
-L.control.attribution({prefix:'© OpenStreetMap · CartoDB'}).addTo(map);
+const map = L.map('map', { center: [37.5326, 126.9902], zoom: 11, zoomControl: false, attributionControl: false });
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+L.control.attribution({ prefix: '© OpenStreetMap · CartoDB' }).addTo(map);
 
-function makeIcon(court,isSel) {
-  const st=courtStatus(court.id), sz=isSel?38:32;
+function makeIcon(court, isSel) {
+  const sz = isSel ? 38 : 30;
+  const col = statusColor(court.status);
+  const label = court.status === '접수중' ? '✓' : court.status === '안내중' ? 'i' : '✕';
   return L.divIcon({
-    html:`<div class="court-marker ${st.cls}${isSel?' sel':''}" style="width:${sz}px;height:${sz}px">${st.count>0?st.count:'✕'}</div>`,
-    className:'',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2],
+    html: `<div class="court-marker ${isSel ? 'sel' : ''}" style="width:${sz}px;height:${sz}px;background:${col}">${label}</div>`,
+    className: '', iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2],
   });
 }
-function buildMapMarkers() {
-  Object.values(markers).forEach(m=>map.removeLayer(m));
-  Object.keys(markers).forEach(k=>delete markers[k]);
-  COURTS.forEach(court=>{
-    const m=L.marker([court.lat,court.lng],{icon:makeIcon(court,false)})
-      .addTo(map).on('click',()=>selectCourt(court.id,true));
-    markers[court.id]=m;
+
+function renderMapMarkers() {
+  // 기존 마커 제거
+  Object.values(markers).forEach(m => map.removeLayer(m));
+  Object.keys(markers).forEach(k => delete markers[k]);
+
+  filteredCourts.forEach(court => {
+    const m = L.marker([court.lat, court.lng], { icon: makeIcon(court, selectedCourtId === court.id) })
+      .addTo(map).on('click', () => selectCourt(court.id, true));
+    markers[court.id] = m;
   });
 }
-function updateMapMarkers() {
-  COURTS.forEach(court=>{ if(markers[court.id]) markers[court.id].setIcon(makeIcon(court,selectedCourtId===court.id)); });
-}
+
 function renderMapList() {
-  const list=document.getElementById('mapCourtList');
-  const sorted=[...filteredCourts].sort((a,b)=>courtStatus(b.id).count-courtStatus(a.id).count);
-  document.getElementById('mapCountBadge').textContent=`${sorted.filter(c=>courtStatus(c.id).count>0).length}곳 가능`;
-  document.getElementById('calSub').textContent=`${filteredCourts.length}개 시설`;
-  list.innerHTML='';
-  sorted.forEach((court,idx)=>{
-    const slots=genSlots(court.id,selectedDate), st=courtStatus(court.id);
-    const item=document.createElement('div');
-    item.className='court-item'+(selectedCourtId===court.id?' selected':'');
-    item.style.animationDelay=`${idx*0.025}s`;
-    item.dataset.id=court.id;
-    item.onclick=()=>selectCourt(court.id,true);
-    item.innerHTML=`
+  const list = document.getElementById('mapCourtList');
+  const accepting = filteredCourts.filter(c => c.status === '접수중').length;
+  document.getElementById('mapCountBadge').textContent = `${accepting}곳 접수중`;
+  document.getElementById('mapSideDate').textContent = `총 ${filteredCourts.length}개 시설`;
+
+  if (filteredCourts.length === 0) {
+    list.innerHTML = '<div class="empty-state"><span class="emoji">🔍</span><span class="msg">조건에 맞는 시설이 없습니다</span><span class="sub">필터를 조정해보세요</span></div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  filteredCourts.forEach((court, idx) => {
+    const item = document.createElement('div');
+    item.className = 'court-item' + (selectedCourtId === court.id ? ' selected' : '');
+    item.dataset.id = court.id;
+    item.onclick = () => selectCourt(court.id, true);
+
+    const faved = isFav(court.svcid);
+    const tags = [];
+    if (court.payType) tags.push(`<span class="ci-tag ${court.payType === '무료' ? 'free' : 'fee'}">${court.payType}</span>`);
+    if (court.minClass && court.minClass !== '테니스') tags.push(`<span class="ci-tag">${court.minClass}</span>`);
+    if (court.rcpStart) tags.push(`<span class="ci-tag">접수 ${fmtDate(court.rcpStart)}~</span>`);
+
+    item.innerHTML = `
+      <span class="fav-star ${faved ? 'active' : ''}" onclick="toggleFav('${court.svcid}',event)">${faved ? '⭐' : '☆'}</span>
       <div class="ci-top">
         <div>
-          <div class="ci-name">${court.name}</div>
-          <div class="ci-gu">${court.gu}${court.place?' · '+court.place:''}</div>
+          <div class="ci-name">${court.name} ${ddayBadge(court)}</div>
+          <div class="ci-gu">${court.gu}${court.place ? ' · ' + court.place : ''}</div>
         </div>
-        <span class="badge ${st.cls}" style="font-size:0.65rem">${court.apiStatus||( st.count>0?st.count+'타임':'마감')}</span>
+        <span class="badge ${court.status}">${court.status || '미정'}</span>
       </div>
-      <div class="time-slots">${slots.map(s=>`<span class="slot ${s.available?'open':'taken'}">${s.time}</span>`).join('')}</div>`;
+      ${tags.length ? `<div class="ci-meta">${tags.join('')}</div>` : ''}`;
     list.appendChild(item);
   });
 }
-function selectCourt(id,flyTo) {
-  selectedCourtId=id;
-  const court=COURTS.find(c=>c.id===id); if(!court) return;
-  const slots=genSlots(id,selectedDate), st=courtStatus(id);
-  const avail=slots.filter(s=>s.available).map(s=>s.time);
-  if(flyTo) map.flyTo([court.lat,court.lng],14,{duration:0.7});
-  document.querySelectorAll('.court-item').forEach(el=>el.classList.toggle('selected',parseInt(el.dataset.id)===id));
-  updateMapMarkers();
-  const url=court.svcid?`https://yeyak.seoul.go.kr/web/reservation/selectReservView.do?rsv_svc_id=${court.svcid}`:'https://yeyak.seoul.go.kr';
-  let extra='';
-  if(court.rcpStart) extra+=`<br>📅 ${fmtDate(court.rcpStart)} ~ ${fmtDate(court.rcpEnd)}`;
-  if(court.fee)      extra+=`<br>💰 ${Number(court.fee).toLocaleString()}원~`;
-  document.getElementById('detailPanel').innerHTML=`
-    <h3>${court.name}</h3>
-    <div class="detail-info">📍 ${court.gu}${court.place?' · '+court.place:''}
-      ${st.count>0
-        ?`<br>✅ <strong style="color:var(--avail)">${st.count}타임 예약 가능</strong><br>
-           <span style="font-family:'DM Mono',monospace;font-size:0.71rem;color:var(--avail)">${avail.join(' · ')}</span>`
-        :`<br>❌ <span style="color:var(--full)">선택 날짜 예약 마감</span>`}
-      ${extra}
+
+function selectCourt(id, flyTo) {
+  selectedCourtId = id;
+  const court = filteredCourts.find(c => c.id === id) || COURTS.find(c => c.id === id);
+  if (!court) return;
+
+  if (flyTo) map.flyTo([court.lat, court.lng], 14, { duration: 0.7 });
+  document.querySelectorAll('.court-item').forEach(el => el.classList.toggle('selected', parseInt(el.dataset.id) === id));
+  renderMapMarkers();
+
+  const url = court.svcUrl || (court.svcid ?
+    `https://yeyak.seoul.go.kr/web/reservation/selectReservView.do?rsv_svc_id=${court.svcid}` :
+    'https://yeyak.seoul.go.kr');
+
+  document.getElementById('detailPanel').innerHTML = `
+    <h3>${court.name} ${ddayBadge(court)}</h3>
+    <div class="detail-info">
+      📍 <strong>${court.gu}</strong>${court.place ? ' · ' + court.place : ''}
+      <br>📌 상태: <span class="badge ${court.status}" style="font-size:0.66rem;padding:2px 8px;">${court.status}</span>
+      ${court.payType ? `<br>💰 ${court.payType}` : ''}
+      ${court.useStartDt ? `<br>📅 이용기간: ${fmtDate(court.useStartDt)} ~ ${fmtDate(court.useEndDt)}` : ''}
+      ${court.rcpStart ? `<br>🗓️ 접수기간: ${fmtDate(court.rcpStart)} ~ ${fmtDate(court.rcpEnd)}` : ''}
+      ${court.useTgtInfo ? `<br>👤 대상: ${court.useTgtInfo.slice(0, 50)}${court.useTgtInfo.length > 50 ? '…' : ''}` : ''}
+      ${court.telNo ? `<br>📞 <a href="tel:${court.telNo}" style="color:var(--accent);text-decoration:none">${court.telNo}</a>` : ''}
+      ${court.minClass ? `<br>🏷️ ${court.maxClass} > ${court.minClass}` : ''}
     </div>
-    <a class="goto-btn" href="${url}" target="_blank">예약 바로가기 →</a>`;
-  if(markers[id]) markers[id].bindPopup(
-    `<strong>${court.name}</strong><br><span style="color:var(--muted);font-size:0.72rem">${court.gu}</span><br>
-     <span style="color:${st.cls==='avail'?'var(--avail)':st.cls==='few'?'var(--few)':'var(--full)'};font-weight:600">
-       ${court.apiStatus||(st.count>0?st.count+'타임 가능':'마감')}
-     </span>
-     ${avail.length>0?`<br><span style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--muted)">${avail.slice(0,5).join(' · ')}${avail.length>5?'…':''}</span>`:''}`,
-    {maxWidth:220}).openPopup();
+    <div style="display:flex;gap:6px;margin-top:10px;">
+      <button class="goto-btn" onclick="openModal(${court.id})" style="background:var(--panel2);color:var(--text2);box-shadow:none;border:1px solid var(--border);flex:0">📋 상세</button>
+      <a class="goto-btn" href="${url}" target="_blank" rel="noopener" style="flex:1">예약 바로가기 →</a>
+    </div>`;
+
+  if (markers[id]) {
+    markers[id].bindPopup(
+      `<strong>${court.name}</strong><br>
+       <span style="color:var(--muted);font-size:0.72rem">${court.gu}${court.place ? ' · ' + court.place : ''}</span><br>
+       <span style="color:${statusColor(court.status)};font-weight:600">${court.status}</span>
+       ${court.payType ? ` · <span style="font-size:0.7rem">${court.payType}</span>` : ''}
+       ${ddayBadge(court)}
+       <div style="display:flex;gap:4px;margin-top:8px">
+         <button onclick="openModal(${court.id})" style="flex:1;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--panel2);color:var(--text2);font-size:0.68rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif">📋 상세</button>
+         <a href="${url}" target="_blank" rel="noopener" style="flex:1;padding:5px 8px;border-radius:6px;background:var(--accent);color:#fff;font-size:0.68rem;text-decoration:none;text-align:center;font-family:'Noto Sans KR',sans-serif">예약 →</a>
+       </div>`,
+      { maxWidth: 240, minWidth: 180 }
+    ).openPopup();
+  }
 }
-function fmtDate(s){return s&&s.length>=8?`${s.slice(0,4)}.${s.slice(4,6)}.${s.slice(6,8)}`:s;}
 
 // ═══════════════════════════════════════
-// CAL GRID
+// LIST VIEW (card grid)
 // ═══════════════════════════════════════
-function getVisibleSlots(){
-  const from=document.getElementById('timeFrom').value;
-  const to  =document.getElementById('timeTo').value;
-  return TIME_SLOTS.filter(t=>t>=from&&t<=to);
-}
-function renderCalGrid(){
-  const body=document.getElementById('calBody');
-  const header=document.getElementById('calTimeHeader');
-  body.innerHTML='';
-  const visSlots=getVisibleSlots();
-  let courts=calFilter==='avail'?filteredCourts.filter(c=>courtStatus(c.id).count>0):filteredCourts;
-  document.getElementById('calSub').textContent=`${courts.length}개 시설`;
-  header.innerHTML=visSlots.map(t=>`<div class="cal-time-head">${t}</div>`).join('');
-  if(!courts.length){
-    body.innerHTML=`<div style="padding:50px;text-align:center;color:var(--muted);font-size:0.84rem">조건에 맞는 시설이 없습니다</div>`;return;
+function renderListView() {
+  const grid = document.getElementById('listGrid');
+  document.getElementById('listTitle').textContent = statusFilter === '전체' ? '전체 시설' : statusFilter + ' 시설';
+  document.getElementById('listSub').textContent = `${filteredCourts.length}개 시설`;
+
+  // listGuSelect 동기화
+  document.getElementById('listGuSelect').value = document.getElementById('guSelect').value;
+
+  if (filteredCourts.length === 0) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><span class="emoji">🔍</span><span class="msg">조건에 맞는 시설이 없습니다</span><span class="sub">필터를 조정해보세요</span></div>';
+    return;
   }
-  courts.forEach((court,idx)=>{
-    const allSlots=genSlots(court.id,selectedDate), st=courtStatus(court.id);
-    const pct=(st.count/TIME_SLOTS.length*100).toFixed(0);
-    const bc=st.cls==='avail'?'var(--avail)':st.cls==='few'?'var(--few)':'var(--full)';
-    const row=document.createElement('div');
-    row.className='cal-row'+(selectedCourtId===court.id?' highlight':'');
-    const sHtml=visSlots.map(t=>{
-      const s=allSlots.find(x=>x.time===t);
-      if(!s) return `<div class="cal-slot taken"></div>`;
-      const clickFn=s.available&&court.svcid?`goCourt('${court.svcid}')`:null;
-      return `<div class="cal-slot ${s.available?'open':'taken'}"
-        onmouseenter="showTT(event,'${court.name.replace(/'/g,'')}','${t}',${s.available})"
-        onmouseleave="hideTT()"
-        ${clickFn?`onclick="${clickFn}" title="클릭해서 예약"`:''}>
-        ${s.available?t:''}
-      </div>`;
-    }).join('');
-    row.innerHTML=`
-      <div class="cal-court-label" onclick="selectCourt(${court.id},false);switchTab('map')">
-        <div style="position:relative;padding-bottom:4px">
-          <div class="cal-court-name">${court.name}</div>
-          <div class="cal-court-gu">${court.gu} · <span style="color:${bc};font-weight:600">${st.count>0?st.count+'타임':'마감'}</span></div>
-          <div class="avail-bar" style="background:${bc};width:${pct}%"></div>
+
+  grid.innerHTML = '';
+  filteredCourts.forEach(court => {
+    const faved = isFav(court.svcid);
+    const col = statusColor(court.status);
+    const url = court.svcUrl || (court.svcid ?
+      `https://yeyak.seoul.go.kr/web/reservation/selectReservView.do?rsv_svc_id=${court.svcid}` :
+      'https://yeyak.seoul.go.kr');
+
+    const card = document.createElement('div');
+    card.className = 'cal-card';
+    card.innerHTML = `
+      <div class="cal-card-accent" style="background:${col}"></div>
+      <div class="cal-card-top">
+        <div>
+          <div class="cal-card-name">${court.name} ${ddayBadge(court)}</div>
+          <div class="cal-card-gu">${court.gu}${court.place ? ' · ' + court.place : ''}</div>
         </div>
+        <span class="badge ${court.status}">${court.status || '미정'}</span>
       </div>
-      <div class="cal-slots-row">${sHtml}</div>`;
-    body.appendChild(row);
+      <div class="cal-card-body">
+        ${court.payType ? `<div class="cal-card-row"><span class="icon">💰</span><span class="label">요금</span><span style="color:${court.payType === '무료' ? 'var(--avail)' : 'var(--text)'};font-weight:600">${court.payType}</span></div>` : ''}
+        ${court.useStartDt ? `<div class="cal-card-row"><span class="icon">📅</span><span class="label">이용</span>${fmtDate(court.useStartDt)} ~ ${fmtDate(court.useEndDt)}</div>` : ''}
+        ${court.rcpStart ? `<div class="cal-card-row"><span class="icon">🗓️</span><span class="label">접수</span>${fmtDate(court.rcpStart)} ~ ${fmtDate(court.rcpEnd)}</div>` : ''}
+        ${court.useTgtInfo ? `<div class="cal-card-row"><span class="icon">👤</span><span class="label">대상</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${court.useTgtInfo.slice(0, 40)}</span></div>` : ''}
+        ${court.telNo ? `<div class="cal-card-row"><span class="icon">📞</span><span class="label">전화</span><a href="tel:${court.telNo}" style="color:var(--accent);text-decoration:none" onclick="event.stopPropagation()">${court.telNo}</a></div>` : ''}
+        ${court.minClass ? `<div class="cal-card-row"><span class="icon">🏷️</span><span class="label">분류</span>${court.minClass}</div>` : ''}
+      </div>
+      <div class="cal-card-actions">
+        <button class="cal-card-btn" onclick="toggleFav('${court.svcid}',event)">${faved ? '⭐ 즐겨찾기 해제' : '☆ 즐겨찾기'}</button>
+        <button class="cal-card-btn" onclick="event.stopPropagation();openModal(${court.id})" style="color:var(--accent)">📋 상세보기</button>
+        <a class="cal-card-btn primary" href="${url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">예약 바로가기 →</a>
+      </div>`;
+    card.onclick = () => { switchTab('map'); setTimeout(() => selectCourt(court.id, true), 100); };
+    grid.appendChild(card);
   });
 }
-function showTT(e,name,time,avail){
-  const t=document.getElementById('tt');
-  t.style.display='block';
-  t.innerHTML=`<strong>${name}</strong> · ${time}<br><span style="color:${avail?'#4ade80':'#f87171'}">${avail?'✅ 예약 가능':'❌ 마감'}</span>${avail?'<br><span style="opacity:0.55;font-size:0.68rem">클릭하여 예약 →</span>':''}`;
-  t.style.left=(e.clientX+14)+'px'; t.style.top=(e.clientY-12)+'px';
-}
-function hideTT(){document.getElementById('tt').style.display='none';}
-function goCourt(svcid){window.open(`https://yeyak.seoul.go.kr/web/reservation/selectReservView.do?rsv_svc_id=${svcid}`,'_blank');}
 
 // ═══════════════════════════════════════
-// TICK & INIT
+// D-DAY CALCULATION
 // ═══════════════════════════════════════
-function tick(){
-  const n=new Date();
-  document.getElementById('statusTime').textContent=`${n.getHours().toString().padStart(2,'0')}:${n.getMinutes().toString().padStart(2,'0')} 기준`;
+function calcDday(court) {
+  if (!court.rcpEnd || court.status === '접수종료' || court.status === '예약마감') return null;
+  const clean = court.rcpEnd.replace(/[^0-9]/g, '');
+  if (clean.length < 8) return null;
+  const endDate = new Date(`${clean.slice(0,4)}-${clean.slice(4,6)}-${clean.slice(6,8)}T23:59:59`);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diff = Math.ceil((endDate - today) / (1000*60*60*24));
+  return diff;
+}
+function ddayBadge(court) {
+  const d = court.dday;
+  if (d === null || d === undefined) return '';
+  if (d < 0) return `<span class="dday past">마감</span>`;
+  if (d === 0) return `<span class="dday hot">D-DAY 🔥</span>`;
+  if (d <= 3) return `<span class="dday hot">D-${d}</span>`;
+  if (d <= 7) return `<span class="dday soon">D-${d}</span>`;
+  return `<span class="dday ok">D-${d}</span>`;
 }
 
-buildDateStrip();
-buildMapMarkers();
-renderMapList();
+// ═══════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════
+function openModal(courtId) {
+  const court = COURTS.find(c => c.id === courtId);
+  if (!court) return;
+  const url = court.svcUrl || (court.svcid ?
+    `https://yeyak.seoul.go.kr/web/reservation/selectReservView.do?rsv_svc_id=${court.svcid}` :
+    'https://yeyak.seoul.go.kr');
+  const faved = isFav(court.svcid);
+
+  // 상세내용 정리 (HTML 태그 제거 후 줄바꿈 처리)
+  let desc = (court.dtlCont || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+  if (desc.length > 500) desc = desc.slice(0, 500) + '…';
+
+  let html = '';
+  if (court.imgUrl) {
+    html += `<img class="modal-img" src="${court.imgUrl}" alt="${court.name}" onerror="this.style.display='none'">`;
+  }
+  html += `<div class="modal-body">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+      <div>
+        <div class="modal-title">${court.name}</div>
+        <div class="modal-gu">📍 ${court.gu}${court.place ? ' · ' + court.place : ''}</div>
+      </div>
+      <span class="badge ${court.status}" style="flex-shrink:0;font-size:0.68rem">${court.status}</span>
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-section-title">기본 정보</div>
+      <div class="modal-row"><span class="icon">💰</span><span class="label">요금</span><span class="value" style="${court.payType==='무료'?'color:var(--avail);font-weight:600':''}">${court.payType || '-'}</span></div>
+      ${court.useStartDt ? `<div class="modal-row"><span class="icon">📅</span><span class="label">이용기간</span><span class="value">${fmtDate(court.useStartDt)} ~ ${fmtDate(court.useEndDt)}</span></div>` : ''}
+      ${court.rcpStart ? `<div class="modal-row"><span class="icon">🗓️</span><span class="label">접수기간</span><span class="value">${fmtDate(court.rcpStart)} ~ ${fmtDate(court.rcpEnd)} ${ddayBadge(court)}</span></div>` : ''}
+      ${court.useTgtInfo ? `<div class="modal-row"><span class="icon">👤</span><span class="label">대상</span><span class="value">${court.useTgtInfo}</span></div>` : ''}
+      ${court.minClass ? `<div class="modal-row"><span class="icon">🏷️</span><span class="label">분류</span><span class="value">${court.maxClass} > ${court.minClass}</span></div>` : ''}
+      ${court.telNo ? `<div class="modal-row"><span class="icon">📞</span><span class="label">전화</span><span class="value"><a href="tel:${court.telNo}" style="color:var(--accent);text-decoration:none">${court.telNo}</a></span></div>` : ''}
+    </div>
+
+    ${desc ? `<div class="modal-section"><div class="modal-section-title">상세 안내</div><div class="modal-desc">${desc}</div></div>` : ''}
+
+    <div class="modal-actions">
+      <button class="secondary" onclick="toggleFav('${court.svcid}');openModal(${court.id})">${faved ? '⭐ 즐겨찾기 해제' : '☆ 즐겨찾기 추가'}</button>
+      <a class="primary" href="${url}" target="_blank" rel="noopener">예약 바로가기 →</a>
+    </div>
+  </div>`;
+
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('modalOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('modalOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ═══════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════
+let toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ═══════════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════════
+function tick() {
+  const n = new Date();
+  document.getElementById('statusTime').textContent =
+    `${n.getHours().toString().padStart(2, '0')}:${n.getMinutes().toString().padStart(2, '0')} 기준`;
+}
+
+// ═══════════════════════════════════════
+// SAMPLE DATA (API 실패 시)
+// ═══════════════════════════════════════
+function getSampleData() {
+  return [
+    {id:1,svcid:'S220310172740589179',name:'잠실종합운동장 테니스장',gu:'송파구',place:'잠실종합운동장',status:'접수중',payType:'유료',useStartDt:'2026-03-01',useEndDt:'2026-05-31',rcpStart:'20260225',rcpEnd:'20260228',useTgtInfo:'서울시민 누구나',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.5131,lng:127.0733},
+    {id:2,svcid:'S201129093238129783',name:'서울숲 테니스장',gu:'성동구',place:'서울숲 체육시설',status:'접수중',payType:'유료',useStartDt:'2026-03-01',useEndDt:'2026-04-30',rcpStart:'20260220',rcpEnd:'20260228',useTgtInfo:'서울시민',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.5447,lng:127.0374},
+    {id:3,svcid:'S3',name:'보라매공원 테니스장',gu:'동작구',place:'보라매공원',status:'접수종료',payType:'무료',useStartDt:'2026-02-01',useEndDt:'2026-02-28',rcpStart:'20260115',rcpEnd:'20260131',useTgtInfo:'서울시민',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.4924,lng:126.9226},
+    {id:4,svcid:'S4',name:'여의도한강공원 테니스장',gu:'영등포구',place:'여의도한강공원',status:'접수중',payType:'유료',useStartDt:'2026-03-01',useEndDt:'2026-06-30',rcpStart:'20260225',rcpEnd:'20260301',useTgtInfo:'서울시민 누구나',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.5285,lng:126.9326},
+    {id:5,svcid:'S5',name:'뚝섬한강공원 테니스장',gu:'광진구',place:'뚝섬한강공원',status:'안내중',payType:'유료',useStartDt:'2026-03-10',useEndDt:'2026-05-31',rcpStart:'20260301',rcpEnd:'20260308',useTgtInfo:'서울시민',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.5298,lng:127.0667},
+    {id:6,svcid:'S6',name:'반포한강공원 테니스장',gu:'서초구',place:'반포한강공원',status:'예약마감',payType:'유료',useStartDt:'2026-02-15',useEndDt:'2026-03-15',rcpStart:'20260210',rcpEnd:'20260214',useTgtInfo:'서울시민',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.5072,lng:126.9963},
+    {id:7,svcid:'S7',name:'올림픽공원 테니스장(주간)',gu:'송파구',place:'올림픽공원 테니스코트',status:'접수중',payType:'유료',useStartDt:'2026-03-01',useEndDt:'2026-05-31',rcpStart:'20260220',rcpEnd:'20260228',useTgtInfo:'서울시민',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.5208,lng:127.1214},
+    {id:8,svcid:'S8',name:'마포 망원 테니스장',gu:'마포구',place:'망원한강공원',status:'예약일시중지',payType:'유료',useStartDt:'2026-03-01',useEndDt:'2026-06-30',rcpStart:'',rcpEnd:'',useTgtInfo:'',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.5562,lng:126.9032},
+    {id:9,svcid:'S9',name:'강남구민체육관 테니스교실',gu:'강남구',place:'강남구민체육관',status:'접수중',payType:'유료',useStartDt:'2026-03-10',useEndDt:'2026-06-10',rcpStart:'20260301',rcpEnd:'20260307',useTgtInfo:'강남구민 우선',minClass:'테니스교실',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.4966,lng:127.0620},
+    {id:10,svcid:'S10',name:'노원구 공릉 테니스장',gu:'노원구',place:'중계체육공원',status:'접수종료',payType:'유료',useStartDt:'2026-01-15',useEndDt:'2026-02-28',rcpStart:'20260110',rcpEnd:'20260114',useTgtInfo:'서울시민',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.6296,lng:127.0744},
+  ];
+}
+
+// ═══════════════════════════════════════
+// URL PARAMS (공유 기능)
+// ═══════════════════════════════════════
+function readUrlParams() {
+  const p = new URLSearchParams(location.search);
+  if (p.get('gu')) {
+    document.getElementById('guSelect').value = p.get('gu');
+    document.getElementById('listGuSelect').value = p.get('gu');
+  }
+  if (p.get('status') && p.get('status') !== '전체') {
+    statusFilter = p.get('status');
+    document.querySelectorAll('#statusFilters .filter-pill').forEach(b =>
+      b.classList.toggle('active', b.dataset.status === statusFilter));
+  }
+  if (p.get('q')) {
+    document.getElementById('searchInput').value = p.get('q');
+  }
+  if (p.get('tab') === 'list') {
+    switchTab('list');
+  }
+  if (p.get('sort')) {
+    const sel = document.getElementById('sortSelect');
+    if (sel) sel.value = p.get('sort');
+  }
+}
+function updateUrlParams() {
+  const p = new URLSearchParams();
+  const gu = document.getElementById('guSelect').value;
+  const q = document.getElementById('searchInput').value;
+  const sort = document.getElementById('sortSelect')?.value;
+  if (gu) p.set('gu', gu);
+  if (statusFilter !== '전체') p.set('status', statusFilter);
+  if (q) p.set('q', q);
+  if (currentTab !== 'map') p.set('tab', currentTab);
+  if (sort && sort !== 'status') p.set('sort', sort);
+  const str = p.toString();
+  const newUrl = location.pathname + (str ? '?' + str : '');
+  history.replaceState(null, '', newUrl);
+}
+
+// applyFilter에 URL 업데이트 연결
+
+// ═══════════════════════════════════════
+// KEYBOARD NAVIGATION
+// ═══════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (currentTab !== 'map') return;
+  if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'Enter') return;
+
+  e.preventDefault();
+  const items = document.querySelectorAll('.court-item');
+  if (!items.length) return;
+
+  let idx = -1;
+  items.forEach((el, i) => { if (parseInt(el.dataset.id) === selectedCourtId) idx = i; });
+
+  if (e.key === 'ArrowDown') idx = Math.min(idx + 1, items.length - 1);
+  else if (e.key === 'ArrowUp') idx = Math.max(idx - 1, 0);
+  else if (e.key === 'Enter' && selectedCourtId) { openModal(selectedCourtId); return; }
+
+  const newId = parseInt(items[idx]?.dataset.id);
+  if (newId) {
+    selectCourt(newId, true);
+    items[idx].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+});
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+readUrlParams();
 tick();
-setInterval(tick,30000);
+setInterval(tick, 30000);
 loadSeoulAPI();
 </script>
 </body>
