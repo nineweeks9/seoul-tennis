@@ -71,7 +71,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 
 /* VIEWS */
 .views{flex:1;overflow:hidden;display:flex;flex-direction:column;}
-.view{display:none;flex:1;overflow:hidden;}
+.view{display:none;flex:1;overflow:auto;}
 .view.active{display:flex;}
 
 /* MAP VIEW */
@@ -108,7 +108,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .goto-btn:hover{background:#1d4ed8;transform:translateY(-1px);}
 
 /* CAL VIEW */
-.view-cal{flex-direction:column;overflow:hidden;}
+.view-cal{flex-direction:column;overflow-y:auto;}
 .cal-toolbar{padding:10px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;background:var(--panel);box-shadow:var(--shadow);}
 .cal-toolbar-left{display:flex;flex-direction:column;flex-shrink:0;}
 .cal-toolbar-title{font-size:0.9rem;font-weight:700;color:var(--text);}
@@ -322,6 +322,20 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
         </select>
       </div>
     </div>
+    <!-- 키워드 필터 -->
+    <div class="cal-toolbar" style="padding:6px 20px;border-top:none;gap:6px;">
+      <span style="font-size:0.72rem;color:var(--muted);font-weight:600;flex-shrink:0;">시간대:</span>
+      <div class="cal-filters" id="kwFilters">
+        <button class="filter-pill active" data-kw="전체" onclick="setKwFilter('전체')">전체</button>
+        <button class="filter-pill" data-kw="주말" onclick="setKwFilter('주말')">🗓 주말</button>
+        <button class="filter-pill" data-kw="주중" onclick="setKwFilter('주중')">📅 주중</button>
+        <button class="filter-pill" data-kw="평일" onclick="setKwFilter('평일')">📅 평일</button>
+        <button class="filter-pill" data-kw="야간" onclick="setKwFilter('야간')">🌙 야간</button>
+        <button class="filter-pill" data-kw="주간" onclick="setKwFilter('주간')">☀️ 주간</button>
+        <button class="filter-pill" data-kw="새벽" onclick="setKwFilter('새벽')">🌅 새벽</button>
+        <button class="filter-pill" data-kw="교실" onclick="setKwFilter('교실')">🎓 교실</button>
+      </div>
+    </div>
     <div class="cal-scroll" id="listScroll">
       <div class="cal-card-grid" id="listGrid">
         <div class="empty-state"><span class="emoji">⏳</span><span class="msg">데이터 불러오는 중...</span></div>
@@ -363,6 +377,7 @@ let filteredCourts = [];   // 필터 적용 후
 let selectedCourtId = null;
 let currentTab = 'map';
 let statusFilter = '전체';
+let kwFilter = '전체';
 let favOnly = false;
 let autoRefreshEnabled = true;
 let autoRefreshTimer = null;
@@ -447,6 +462,30 @@ function fmtPrice(v) {
   if (!v || v === '0') return '무료';
   const n = parseInt(v);
   return isNaN(n) || n === 0 ? '무료' : n.toLocaleString() + '원';
+}
+
+// ═══════════════════════════════════════
+// KEYWORD TAGGING (시간대 분류)
+// ═══════════════════════════════════════
+function getKeywords(court) {
+  const name = (court.name + ' ' + (court.dtlCont || '')).toLowerCase();
+  const tags = [];
+  if (/주말/.test(name)) tags.push('주말');
+  if (/주중/.test(name)) tags.push('주중');
+  if (/평일/.test(name)) tags.push('평일');
+  if (/야간/.test(name)) tags.push('야간');
+  if (/주간/.test(name) && !/주간\s*보호/.test(name)) tags.push('주간');
+  if (/새벽/.test(name) || /조조/.test(name)) tags.push('새벽');
+  if (/교실/.test(name) || /레슨/.test(name) || /강습/.test(name)) tags.push('교실');
+  return tags;
+}
+
+function setKwFilter(kw) {
+  kwFilter = kw;
+  document.querySelectorAll('#kwFilters .filter-pill').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.kw === kw);
+  });
+  applyFilter();
 }
 
 // ═══════════════════════════════════════
@@ -630,11 +669,15 @@ function applyFilter() {
   const gu = document.getElementById('guSelect').value || document.getElementById('listGuSelect').value;
   const favs = getFavs();
 
-  filteredCourts = COURTS.filter(c => {
+  filteredCourts = COURTS.filter(function(c) {
     if (q && !c.name.toLowerCase().includes(q) && !c.gu.includes(q) && !c.place.toLowerCase().includes(q)) return false;
     if (gu && c.gu !== gu) return false;
     if (statusFilter !== '전체' && c.status !== statusFilter) return false;
     if (favOnly && !favs.includes(c.svcid)) return false;
+    if (kwFilter !== '전체') {
+      var kws = getKeywords(c);
+      if (kws.indexOf(kwFilter) === -1) return false;
+    }
     return true;
   });
 
@@ -680,7 +723,10 @@ function switchTab(tab) {
   document.getElementById('tabCal').classList.toggle('active', tab === 'list');
   document.getElementById('viewMap').classList.toggle('active', tab === 'map');
   document.getElementById('viewList').classList.toggle('active', tab === 'list');
-  if (tab === 'map') setTimeout(() => map.invalidateSize(), 50);
+  if (tab === 'map') {
+    setTimeout(function() { map.invalidateSize(); }, 50);
+    setTimeout(function() { map.invalidateSize(); }, 300);
+  }
   renderAll();
   if (typeof updateUrlParams === 'function') updateUrlParams();
 }
@@ -698,9 +744,20 @@ function renderAll() {
 // MAP
 // ═══════════════════════════════════════
 const map = L.map('map', { center: [37.5326, 126.9902], zoom: 11, zoomControl: false, attributionControl: false });
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+
+// 타일 서버 (fallback 포함)
+const tileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+L.tileLayer(tileUrl, {
+  maxZoom: 19,
+  attribution: '© OpenStreetMap'
+}).addTo(map);
+
 L.control.zoom({ position: 'bottomright' }).addTo(map);
-L.control.attribution({ prefix: '© OpenStreetMap · CartoDB' }).addTo(map);
+
+// 지도 강제 리사이즈 (초기 로딩 시 크기 0 문제 해결)
+setTimeout(function() { map.invalidateSize(); }, 200);
+setTimeout(function() { map.invalidateSize(); }, 500);
+setTimeout(function() { map.invalidateSize(); }, 1500);
 
 function makeIcon(court, isSel) {
   const sz = isSel ? 38 : 30;
@@ -834,12 +891,15 @@ function renderListView() {
 
     const card = document.createElement('div');
     card.className = 'cal-card';
+    const kwTags = getKeywords(court).map(function(k) {
+      return '<span class="ci-tag" style="background:var(--accent-bg);color:var(--accent);border-color:rgba(37,99,235,0.2)">' + k + '</span>';
+    }).join('');
     card.innerHTML = `
       <div class="cal-card-accent" style="background:${col}"></div>
       <div class="cal-card-top">
         <div>
           <div class="cal-card-name">${court.name} ${ddayBadge(court)}</div>
-          <div class="cal-card-gu">${court.gu}${court.place ? ' · ' + court.place : ''}</div>
+          <div class="cal-card-gu">${court.gu}${court.place ? ' · ' + court.place : ''}${kwTags ? ' ' + kwTags : ''}</div>
         </div>
         <span class="badge ${court.status}">${court.status || '미정'}</span>
       </div>
