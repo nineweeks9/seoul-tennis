@@ -1,11 +1,6 @@
-// api/seoul.js
-// 서울시 공공서비스예약 API 프록시
-// Vercel 환경변수 SEOUL_API_KEY 에 인증키를 설정하세요
-
 const https = require('https');
 
 module.exports = async (req, res) => {
-  // CORS 허용
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -21,13 +16,12 @@ module.exports = async (req, res) => {
   try {
     const data = await fetchUrl(url);
     const json = JSON.parse(data);
-
-    // 5분 캐시
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.status(200).json(json);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Seoul API error:', err.message);
+    res.status(502).json({ error: err.message });
   }
 };
 
