@@ -852,55 +852,66 @@ setTimeout(fixMap, 800);
 setTimeout(fixMap, 2000);
 window.addEventListener('resize', fixMap);
 
-function makeIcon(court, isSel) {
-  const sz = isSel ? 38 : 30;
-  const col = statusColor(court.status);
-  const colMap = {'var(--avail)':'#16a34a','var(--info)':'#0ea5e9','var(--few)':'#d97706','var(--full)':'#dc2626'};
-  const hex = colMap[col] || '#9ca3af';
-  const label = court.status === '접수중' ? '✓' : court.status === '안내중' ? 'i' : '✕';
+// 상태 우선순위
+var STATUS_PRIORITY = {'접수중':0, '접수종료':1, '안내중':2, '예약일시중지':3, '예약마감':4};
+var COL_MAP = {'var(--avail)':'#16a34a','var(--info)':'#0ea5e9','var(--few)':'#d97706','var(--full)':'#dc2626'};
+
+function makeIcon(status, isSel, count) {
+  var sz = isSel ? 36 : 28;
+  var hex = COL_MAP[statusColor(status)] || '#9ca3af';
+  var label = status === '접수중' ? '✓' : status === '안내중' ? 'i' : '✕';
+  var badge = '';
+  if (count > 1) {
+    badge = '<span style="position:absolute;top:-5px;right:-7px;background:#374151;color:white;font-size:0.5rem;font-weight:700;min-width:14px;height:14px;border-radius:7px;display:flex;align-items:center;justify-content:center;padding:0 3px;border:1.5px solid white;font-family:DM Mono,monospace;">'+count+'</span>';
+  }
   return L.divIcon({
-    html: '<div class="court-marker ' + (isSel ? 'sel' : '') + '" style="width:'+sz+'px;height:'+sz+'px;background:'+hex+'">'+label+'</div>',
-    className: '', iconSize: [sz, sz], iconAnchor: [sz / 2, sz / 2],
+    html: '<div style="position:relative;"><div class="court-marker '+(isSel?'sel':'')+'" style="width:'+sz+'px;height:'+sz+'px;background:'+hex+'">'+label+'</div>'+badge+'</div>',
+    className: '', iconSize: [sz+8, sz+8], iconAnchor: [(sz+8)/2, (sz+8)/2],
   });
 }
 
-// 신호등 스타일 그룹 마커
-function makeGroupIcon(group, isSel) {
-  var colMap = {'var(--avail)':'#16a34a','var(--info)':'#0ea5e9','var(--few)':'#d97706','var(--full)':'#dc2626'};
-
-  // 상태 점 HTML
-  var dots = group.map(function(c) {
-    var col = statusColor(c.status);
-    var hex = colMap[col] || '#9ca3af';
-    return '<span style="width:8px;height:8px;border-radius:50%;background:'+hex+';display:inline-block;border:1.5px solid white;"></span>';
-  }).join('');
-
-  // 장소명 축약
-  var placeName = group[0].place || group[0].gu;
-  if (placeName.length > 6) placeName = placeName.slice(0, 6) + '…';
-
-  var html = '<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;'+(isSel?'transform:scale(1.15);':'')+'filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));">';
-  // 상태 점들
-  html += '<div style="display:flex;gap:2px;background:white;padding:2px 4px;border-radius:8px;border:1px solid #e4e7ec;">'+dots+'</div>';
-  // 꼬리
-  html += '<div style="width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:5px solid white;margin-top:-1px;"></div>';
-  // 라벨
-  html += '<div style="background:white;padding:1px 5px;border-radius:4px;font-size:0.58rem;font-weight:700;color:#374151;border:1px solid #e4e7ec;margin-top:1px;white-space:nowrap;font-family:Noto Sans KR,sans-serif;">'+placeName+'</div>';
-  html += '</div>';
-
-  var w = Math.max(group.length * 12 + 10, 50);
-  var h = 42;
-  return L.divIcon({
-    html: html,
-    className: '', iconSize: [w, h], iconAnchor: [w / 2, h],
+function sortByPriority(arr) {
+  return arr.slice().sort(function(a,b) {
+    return (STATUS_PRIORITY[a.status]||9) - (STATUS_PRIORITY[b.status]||9);
   });
+}
+
+function buildPopup(group) {
+  var sorted = sortByPriority(group);
+  var html = '<div style="max-height:260px;overflow-y:auto;min-width:210px;">';
+  html += '<strong style="font-size:0.82rem;">'+(group[0].place||group[0].gu)+'</strong>';
+  if (group.length > 1) html += '<span style="font-size:0.65rem;color:var(--muted);margin-left:6px;">'+group.length+'개 프로그램</span>';
+  html += '<hr style="margin:6px 0;border:none;border-top:1px solid #e4e7ec">';
+
+  sorted.forEach(function(c) {
+    var dotCol = COL_MAP[statusColor(c.status)] || '#9ca3af';
+    var kws = getKeywords(c).map(function(k){return kwLabel(k);}).join(' ');
+    var shortName = c.name;
+    if (group[0].place && shortName.includes(group[0].place)) {
+      shortName = shortName.replace(group[0].place,'').replace(/[-–—()（）]/g,' ').trim();
+    }
+    if (!shortName) shortName = c.name;
+
+    html += '<div style="padding:5px 0;border-bottom:1px solid #f0f0f0;cursor:pointer;" onclick="selectCourt('+c.id+',false);map.closePopup()">';
+    html += '<div style="display:flex;align-items:center;gap:5px;">';
+    html += '<span style="width:8px;height:8px;border-radius:50%;background:'+dotCol+';flex-shrink:0;display:inline-block;"></span>';
+    html += '<span style="font-size:0.73rem;font-weight:600;flex:1;">'+shortName+'</span>';
+    html += '<span style="font-size:0.6rem;color:'+dotCol+';font-weight:600;">'+c.status+'</span>';
+    html += '</div>';
+    html += '<div style="margin-left:13px;font-size:0.62rem;color:#9ca3af;">';
+    html += kws;
+    if (c.useTimeStart) html += ' ⏰'+c.useTimeStart+'~'+c.useTimeEnd;
+    html += '</div></div>';
+  });
+  html += '</div>';
+  return html;
 }
 
 function renderMapMarkers() {
-  Object.values(markers).forEach(m => map.removeLayer(m));
-  Object.keys(markers).forEach(k => delete markers[k]);
+  Object.values(markers).forEach(function(m){map.removeLayer(m);});
+  Object.keys(markers).forEach(function(k){delete markers[k];});
 
-  // 같은 원래 좌표끼리 그룹핑
+  // 같은 좌표끼리 그룹핑
   var groups = {};
   filteredCourts.forEach(function(court) {
     var key = court.x.toFixed(4) + ',' + court.y.toFixed(4);
@@ -910,51 +921,21 @@ function renderMapMarkers() {
   });
 
   Object.values(groups).forEach(function(group) {
-    var centerLat = group.reduce(function(s, c) { return s + c.lat; }, 0) / group.length;
-    var centerLng = group.reduce(function(s, c) { return s + c.lng; }, 0) / group.length;
+    var sorted = sortByPriority(group);
+    var best = sorted[0]; // 우선순위 가장 높은 상태
+    var centerLat = group.reduce(function(s,c){return s+c.lat;},0) / group.length;
+    var centerLng = group.reduce(function(s,c){return s+c.lng;},0) / group.length;
+    var isAnySel = group.some(function(c){return c.id===selectedCourtId;});
+
+    var m = L.marker([centerLat, centerLng], {
+      icon: makeIcon(best.status, isAnySel, group.length)
+    }).addTo(map).bindPopup(buildPopup(group), {maxWidth:280, minWidth:220});
 
     if (group.length === 1) {
-      var court = group[0];
-      var m = L.marker([court.lat, court.lng], { icon: makeIcon(court, selectedCourtId === court.id) })
-        .addTo(map).on('click', function() { selectCourt(court.id, true); });
-      markers[court.id] = m;
-    } else {
-      var isAnySel = group.some(function(c) { return c.id === selectedCourtId; });
-      var colMap = {'var(--avail)':'#16a34a','var(--info)':'#0ea5e9','var(--few)':'#d97706','var(--full)':'#dc2626'};
-
-      // 팝업: 모든 프로그램 표시
-      var popupHtml = '<div style="max-height:250px;overflow-y:auto;min-width:200px;">';
-      popupHtml += '<strong style="font-size:0.82rem;">' + (group[0].place || group[0].gu) + '</strong>';
-      popupHtml += '<span style="font-size:0.65rem;color:var(--muted);margin-left:6px;">' + group.length + '개 프로그램</span>';
-      popupHtml += '<hr style="margin:6px 0;border:none;border-top:1px solid var(--border)">';
-      group.forEach(function(c) {
-        var col = statusColor(c.status);
-        var dotCol = colMap[col] || '#9ca3af';
-        var kws = getKeywords(c).map(function(k) { return kwLabel(k); }).join(' ');
-        var shortName = c.name;
-        if (group[0].place && shortName.includes(group[0].place)) {
-          shortName = shortName.replace(group[0].place, '').replace(/[-–—()（）]/g,' ').trim();
-        }
-        var url = c.svcUrl || (c.svcid ? 'https://yeyak.seoul.go.kr/web/reservation/selectReservView.do?rsv_svc_id='+c.svcid : '#');
-        popupHtml += '<div style="padding:5px 0;border-bottom:1px solid var(--border);cursor:pointer;" onclick="selectCourt('+c.id+',false);map.closePopup()">';
-        popupHtml += '<div style="display:flex;align-items:center;gap:5px;">';
-        popupHtml += '<span style="width:8px;height:8px;border-radius:50%;background:'+dotCol+';flex-shrink:0;display:inline-block;"></span>';
-        popupHtml += '<span style="font-size:0.73rem;font-weight:600;flex:1;">'+(shortName || c.name)+'</span>';
-        popupHtml += '<span style="font-size:0.62rem;color:'+dotCol+';font-weight:600;">'+c.status+'</span>';
-        popupHtml += '</div>';
-        popupHtml += '<div style="margin-left:13px;font-size:0.63rem;color:var(--muted);">';
-        popupHtml += kws;
-        if (c.useTimeStart) popupHtml += ' ⏰'+c.useTimeStart+'~'+c.useTimeEnd;
-        popupHtml += '</div></div>';
-      });
-      popupHtml += '</div>';
-
-      var gm = L.marker([centerLat, centerLng], { icon: makeGroupIcon(group, isAnySel) })
-        .addTo(map)
-        .bindPopup(popupHtml, { maxWidth: 280, minWidth: 220 });
-
-      group.forEach(function(c) { markers[c.id] = gm; });
+      m.on('click', function(){selectCourt(group[0].id, true);});
     }
+
+    group.forEach(function(c){markers[c.id]=m;});
   });
 }
 
