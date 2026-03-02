@@ -100,11 +100,12 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .fav-star:hover{opacity:0.8;transform:scale(1.2);}
 .fav-star.active{opacity:1;color:#f59e0b;}
 
-.detail-panel{border-top:1px solid var(--border);padding:16px 20px;flex-shrink:0;background:var(--panel2);min-height:140px;overflow-y:auto;max-height:320px;}
-.detail-panel h3{font-size:0.88rem;font-weight:700;margin:0 0 10px;line-height:1.4;}
-.detail-panel .detail-info{font-size:0.75rem;line-height:2;color:var(--text2);}
-.detail-panel .detail-info br{display:block;content:'';margin:2px 0;}
-.detail-panel .goto-btn{padding:8px 14px;border-radius:8px;font-size:0.73rem;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;text-align:center;text-decoration:none;transition:all 0.15s;display:inline-flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;}
+.detail-panel{border-top:1px solid var(--border);padding:14px 18px;flex-shrink:0;background:var(--panel2);overflow-y:auto;max-height:280px;display:none;position:relative;}
+.detail-panel.open{display:block;}
+.detail-panel h3{font-size:0.85rem;font-weight:700;margin:0 0 8px;line-height:1.4;padding-right:24px;}
+.detail-panel .detail-close{position:absolute;top:10px;right:12px;background:none;border:none;font-size:1rem;cursor:pointer;color:var(--muted);padding:2px 6px;border-radius:4px;}
+.detail-panel .detail-close:hover{background:var(--border);color:var(--text);}
+.detail-panel .goto-btn{padding:7px 14px;border-radius:8px;font-size:0.72rem;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;text-align:center;text-decoration:none;transition:all 0.15s;display:inline-flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;}
 .detail-panel h3{font-size:0.85rem;font-weight:700;margin-bottom:8px;color:var(--text);}
 .detail-info{font-size:0.74rem;color:var(--text2);line-height:2;}
 .detail-info strong{color:var(--text);}
@@ -304,9 +305,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
       <div class="court-list" id="mapCourtList">
         <div class="empty-state"><span class="emoji">⏳</span><span class="msg">데이터 불러오는 중...</span></div>
       </div>
-      <div class="detail-panel" id="detailPanel">
-        <div class="detail-info" style="color:var(--muted)">← 시설을 클릭하면 상세 정보가 표시됩니다</div>
-      </div>
+      <div class="detail-panel" id="detailPanel"></div>
     </div>
   </div>
 
@@ -862,6 +861,16 @@ window.addEventListener('resize', fixMap);
 var STATUS_PRIORITY = {'접수중':0, '접수종료':1, '안내중':2, '예약일시중지':3, '예약마감':4};
 var COL_MAP = {'var(--avail)':'#16a34a','var(--info)':'#0ea5e9','var(--few)':'#d97706','var(--full)':'#dc2626'};
 
+function getStatusPriority(s) {
+  if (!s) return 9;
+  if (s.indexOf('접수중') >= 0 && s.indexOf('종료') < 0) return 0;
+  if (s.indexOf('접수종료') >= 0) return 1;
+  if (s.indexOf('안내') >= 0) return 2;
+  if (s.indexOf('중지') >= 0) return 3;
+  if (s.indexOf('마감') >= 0) return 4;
+  return 9;
+}
+
 function makeIcon(status, isSel, count) {
   var sz = isSel ? 36 : 28;
   var hex = COL_MAP[statusColor(status)] || '#9ca3af';
@@ -878,7 +887,7 @@ function makeIcon(status, isSel, count) {
 
 function sortByPriority(arr) {
   return arr.slice().sort(function(a,b) {
-    return (STATUS_PRIORITY[a.status]||9) - (STATUS_PRIORITY[b.status]||9);
+    return getStatusPriority(a.status) - getStatusPriority(b.status);
   });
 }
 
@@ -998,7 +1007,9 @@ function selectCourt(id, flyTo) {
     `https://yeyak.seoul.go.kr/web/reservation/selectReservView.do?rsv_svc_id=${court.svcid}` :
     'https://yeyak.seoul.go.kr');
 
-  document.getElementById('detailPanel').innerHTML = `
+  var panel = document.getElementById('detailPanel');
+  panel.innerHTML = `
+    <button class="detail-close" onclick="closeDetailPanel()">✕</button>
     <h3>${court.name} ${ddayBadge(court)}</h3>
     <table style="width:100%;border-collapse:collapse;font-size:0.75rem;">
       <tr><td style="padding:4px 0;width:24px;vertical-align:top;">📍</td><td style="padding:4px 0;color:var(--text2);"><strong>${court.gu}</strong>${court.place ? ' · ' + court.place : ''}</td></tr>
@@ -1014,10 +1025,18 @@ function selectCourt(id, flyTo) {
       <button class="goto-btn" onclick="openModal(${court.id})" style="background:var(--panel);color:var(--text2);box-shadow:none;border:1px solid var(--border);">📋 상세</button>
       <a class="goto-btn" href="${url}" target="_blank" rel="noopener" style="flex:1;background:var(--accent);color:#fff;">예약 바로가기 →</a>
     </div>`;
+  panel.classList.add('open');
 
   if (markers[id]) {
     markers[id].openPopup();
   }
+}
+
+function closeDetailPanel() {
+  selectedCourtId = null;
+  document.getElementById('detailPanel').classList.remove('open');
+  document.querySelectorAll('.court-item').forEach(function(el){el.classList.remove('selected');});
+  renderMapMarkers();
 }
 
 // ═══════════════════════════════════════
