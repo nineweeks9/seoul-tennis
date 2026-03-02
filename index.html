@@ -287,6 +287,14 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
         <div class="legend-item"><div class="legend-dot" style="background:var(--full)"></div>접수종료</div>
         <div class="legend-item"><div class="legend-dot" style="background:#9ca3af"></div>마감</div>
       </div>
+      <div style="padding:6px 14px;border-bottom:1px solid var(--border);display:flex;gap:3px;flex-wrap:wrap;flex-shrink:0;background:var(--panel2);">
+        <button class="filter-pill kw-filter-pill active" data-kw="전체" onclick="setKwFilter('전체')" style="padding:2px 8px;font-size:0.65rem;">전체</button>
+        <button class="filter-pill kw-filter-pill" data-kw="평일" onclick="setKwFilter('평일')" style="padding:2px 8px;font-size:0.65rem;">📅평일</button>
+        <button class="filter-pill kw-filter-pill" data-kw="주말" onclick="setKwFilter('주말')" style="padding:2px 8px;font-size:0.65rem;">🗓주말</button>
+        <button class="filter-pill kw-filter-pill" data-kw="주간" onclick="setKwFilter('주간')" style="padding:2px 8px;font-size:0.65rem;">☀️주간</button>
+        <button class="filter-pill kw-filter-pill" data-kw="야간" onclick="setKwFilter('야간')" style="padding:2px 8px;font-size:0.65rem;">🌙야간</button>
+        <button class="filter-pill kw-filter-pill" data-kw="새벽" onclick="setKwFilter('새벽')" style="padding:2px 8px;font-size:0.65rem;">🌅새벽</button>
+      </div>
       <div class="court-list" id="mapCourtList">
         <div class="empty-state"><span class="emoji">⏳</span><span class="msg">데이터 불러오는 중...</span></div>
       </div>
@@ -326,14 +334,12 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
     <div class="cal-toolbar" style="padding:6px 20px;border-top:none;gap:6px;">
       <span style="font-size:0.72rem;color:var(--muted);font-weight:600;flex-shrink:0;">시간대:</span>
       <div class="cal-filters" id="kwFilters">
-        <button class="filter-pill active" data-kw="전체" onclick="setKwFilter('전체')">전체</button>
-        <button class="filter-pill" data-kw="주말" onclick="setKwFilter('주말')">🗓 주말</button>
-        <button class="filter-pill" data-kw="주중" onclick="setKwFilter('주중')">📅 주중</button>
-        <button class="filter-pill" data-kw="평일" onclick="setKwFilter('평일')">📅 평일</button>
-        <button class="filter-pill" data-kw="야간" onclick="setKwFilter('야간')">🌙 야간</button>
-        <button class="filter-pill" data-kw="주간" onclick="setKwFilter('주간')">☀️ 주간</button>
-        <button class="filter-pill" data-kw="새벽" onclick="setKwFilter('새벽')">🌅 새벽</button>
-        <button class="filter-pill" data-kw="교실" onclick="setKwFilter('교실')">🎓 교실</button>
+        <button class="filter-pill kw-filter-pill active" data-kw="전체" onclick="setKwFilter('전체')">전체</button>
+        <button class="filter-pill kw-filter-pill" data-kw="평일" onclick="setKwFilter('평일')">📅 평일</button>
+        <button class="filter-pill kw-filter-pill" data-kw="주말" onclick="setKwFilter('주말')">🗓 주말</button>
+        <button class="filter-pill kw-filter-pill" data-kw="주간" onclick="setKwFilter('주간')">☀️ 주간</button>
+        <button class="filter-pill kw-filter-pill" data-kw="야간" onclick="setKwFilter('야간')">🌙 야간</button>
+        <button class="filter-pill kw-filter-pill" data-kw="새벽" onclick="setKwFilter('새벽')">🌅 새벽</button>
       </div>
     </div>
     <div class="cal-scroll" id="listScroll">
@@ -468,17 +474,40 @@ function fmtPrice(v) {
 // ═══════════════════════════════════════
 // KEYWORD TAGGING (시간대 분류)
 // ═══════════════════════════════════════
+// 조건식 설명:
+// 1. 시설명(SVCNM)에서 키워드 추출 (괄호 안 or 하이픈 뒤)
+// 2. 매칭 우선순위: 시설명 > 상세내용(DTLCONT)
+// 3. 분류 규칙:
+//    - "평일" 포함 → 평일
+//    - "토", "일", "공휴일", "주말" 포함 → 주말
+//    - "주중" 포함 → 평일 (주중=평일)
+//    - "야간" 포함 → 야간
+//    - "주간" 포함 (단, "주간보호" 제외) → 주간
+//    - "새벽", "조조", "얼리버드" 포함 → 새벽
+//    - 위 키워드 없으면 → 평일+주말+주간+야간 모두 해당
 function getKeywords(court) {
-  const name = (court.name + ' ' + (court.dtlCont || '')).toLowerCase();
-  const tags = [];
-  if (/주말/.test(name)) tags.push('주말');
-  if (/주중/.test(name)) tags.push('주중');
-  if (/평일/.test(name)) tags.push('평일');
+  var name = court.name || '';
+  var tags = [];
+
+  if (/평일/.test(name) || /주중/.test(name)) tags.push('평일');
+  if (/토[\/·,]|\/일|주말|토요|일요|공휴일|토일/.test(name)) tags.push('주말');
   if (/야간/.test(name)) tags.push('야간');
   if (/주간/.test(name) && !/주간\s*보호/.test(name)) tags.push('주간');
-  if (/새벽/.test(name) || /조조/.test(name)) tags.push('새벽');
-  if (/교실/.test(name) || /레슨/.test(name) || /강습/.test(name)) tags.push('교실');
+  if (/새벽|조조|얼리/.test(name)) tags.push('새벽');
+
+  // 키워드 없으면 모든 시간대에 속함
+  if (tags.length === 0) tags.push('평일', '주말', '주간', '야간');
+
   return tags;
+}
+
+// 사용자에게 보여줄 태그 라벨
+function kwLabel(kw) {
+  var labels = {
+    '평일': '📅 평일', '주말': '🗓 주말', '야간': '🌙 야간',
+    '주간': '☀️ 주간', '새벽': '🌅 새벽'
+  };
+  return labels[kw] || kw;
 }
 
 function setKwFilter(kw) {
@@ -492,8 +521,8 @@ function setKwFilter(kw) {
       kwFilters.push(kw);
     }
   }
-  // UI 업데이트
-  document.querySelectorAll('#kwFilters .filter-pill').forEach(function(b) {
+  // 양쪽 뷰 UI 동기화
+  document.querySelectorAll('.kw-filter-pill').forEach(function(b) {
     if (b.dataset.kw === '전체') {
       b.classList.toggle('active', kwFilters.length === 0);
     } else {
@@ -561,10 +590,15 @@ async function loadSeoulAPI(isRetry) {
           imgUrl: r.IMGURL || '',
           telNo: r.TELNO || '',
           dtlCont: r.DTLCONT || '',
-          useStartDt: r.V_MIN || '',
-          useEndDt: r.V_MAX || '',
-          rcpStart: r.RCPTBGNDT || r.RCPBGNDT || '',
-          rcpEnd: r.RCPTENDDT || r.RCPENDDT || '',
+          // 이용시간 (V_MIN/V_MAX = 시간)
+          useTimeStart: r.V_MIN || '',
+          useTimeEnd: r.V_MAX || '',
+          // 서비스 기간 (SVCOPNBGNDT/SVCOPNENDDT)
+          svcStart: r.SVCOPNBGNDT || '',
+          svcEnd: r.SVCOPNENDDT || '',
+          // 접수기간
+          rcpStart: r.RCPTBGNDT || '',
+          rcpEnd: r.RCPTENDDT || '',
           maxClass: r.MAXCLASSNM || '',
           minClass: r.MINCLASSNM || '',
           x: parseFloat(r.X) || 0,
@@ -580,6 +614,25 @@ async function loadSeoulAPI(isRetry) {
         }
         court.dday = calcDday(court);
         return court;
+      });
+
+      // 같은 좌표 마커 오프셋 처리
+      var coordMap = {};
+      COURTS.forEach(function(c) {
+        var key = c.lat.toFixed(5) + ',' + c.lng.toFixed(5);
+        if (!coordMap[key]) coordMap[key] = [];
+        coordMap[key].push(c);
+      });
+      Object.values(coordMap).forEach(function(group) {
+        if (group.length <= 1) return;
+        var angle = 0;
+        var step = (2 * Math.PI) / group.length;
+        var radius = 0.0008; // 약 80m 오프셋
+        group.forEach(function(c) {
+          c.lat += radius * Math.cos(angle);
+          c.lng += radius * Math.sin(angle);
+          angle += step;
+        });
       });
 
       apiRetryCount = 0;
@@ -716,7 +769,7 @@ function applyFilter() {
       return aD - bD;
     }
     if (sortBy === 'useStart') {
-      const aD = a.useStartDt || 'z', bD = b.useStartDt || 'z';
+      const aD = a.svcStart || 'z', bD = b.svcStart || 'z';
       return aD.localeCompare(bD);
     }
     return 0;
@@ -764,7 +817,17 @@ function renderAll() {
 // MAP
 // ═══════════════════════════════════════
 var mapEl = document.getElementById('map');
-var map = L.map(mapEl, { center: [37.5326, 126.9902], zoom: 11, zoomControl: false, attributionControl: false });
+var seoulBounds = L.latLngBounds([37.35, 126.65], [37.78, 127.25]);
+var map = L.map(mapEl, {
+  center: [37.5326, 126.9902],
+  zoom: 12,
+  minZoom: 10,
+  maxZoom: 18,
+  maxBounds: seoulBounds.pad(0.1),
+  maxBoundsViscosity: 0.8,
+  zoomControl: false,
+  attributionControl: false
+});
 
 // OpenStreetMap 타일
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -861,7 +924,7 @@ function selectCourt(id, flyTo) {
       📍 <strong>${court.gu}</strong>${court.place ? ' · ' + court.place : ''}
       <br>📌 상태: <span class="badge ${court.status}" style="font-size:0.66rem;padding:2px 8px;">${court.status}</span>
       ${court.payType ? `<br>💰 ${court.payType}` : ''}
-      ${court.useStartDt ? `<br>📅 이용기간: ${fmtDate(court.useStartDt)} ~ ${fmtDate(court.useEndDt)}` : ''}
+      ${court.svcStart ? `<br>📅 기간: ${fmtDate(court.svcStart)} ~ ${fmtDate(court.svcEnd)}` : ''}${court.useTimeStart ? `<br>⏰ 이용시간: ${court.useTimeStart} ~ ${court.useTimeEnd}` : ''}
       ${court.rcpStart ? `<br>🗓️ 접수기간: ${fmtDate(court.rcpStart)} ~ ${fmtDate(court.rcpEnd)}` : ''}
       ${court.useTgtInfo ? `<br>👤 대상: ${court.useTgtInfo.slice(0, 50)}${court.useTgtInfo.length > 50 ? '…' : ''}` : ''}
       ${court.telNo ? `<br>📞 <a href="tel:${court.telNo}" style="color:var(--accent);text-decoration:none">${court.telNo}</a>` : ''}
@@ -915,7 +978,7 @@ function renderListView() {
     const card = document.createElement('div');
     card.className = 'cal-card';
     const kwTags = getKeywords(court).map(function(k) {
-      return '<span class="ci-tag" style="background:var(--accent-bg);color:var(--accent);border-color:rgba(37,99,235,0.2)">' + k + '</span>';
+      return '<span class="ci-tag" style="background:var(--accent-bg);color:var(--accent);border-color:rgba(37,99,235,0.2)">' + kwLabel(k) + '</span>';
     }).join('');
     card.innerHTML = `
       <div class="cal-card-accent" style="background:${col}"></div>
@@ -928,7 +991,8 @@ function renderListView() {
       </div>
       <div class="cal-card-body">
         ${court.payType ? `<div class="cal-card-row"><span class="icon">💰</span><span class="label">요금</span><span style="color:${court.payType === '무료' ? 'var(--avail)' : 'var(--text)'};font-weight:600">${court.payType}</span></div>` : ''}
-        ${court.useStartDt ? `<div class="cal-card-row"><span class="icon">📅</span><span class="label">이용</span>${fmtDate(court.useStartDt)} ~ ${fmtDate(court.useEndDt)}</div>` : ''}
+        ${court.svcStart ? `<div class="cal-card-row"><span class="icon">📅</span><span class="label">기간</span>${fmtDate(court.svcStart)} ~ ${fmtDate(court.svcEnd)}</div>` : ''}
+        ${court.useTimeStart ? `<div class="cal-card-row"><span class="icon">⏰</span><span class="label">시간</span>${court.useTimeStart} ~ ${court.useTimeEnd}</div>` : ''}
         ${court.rcpStart ? `<div class="cal-card-row"><span class="icon">🗓️</span><span class="label">접수</span>${fmtDate(court.rcpStart)} ~ ${fmtDate(court.rcpEnd)}</div>` : ''}
         ${court.useTgtInfo ? `<div class="cal-card-row"><span class="icon">👤</span><span class="label">대상</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${court.useTgtInfo.slice(0, 40)}</span></div>` : ''}
         ${court.telNo ? `<div class="cal-card-row"><span class="icon">📞</span><span class="label">전화</span><a href="tel:${court.telNo}" style="color:var(--accent);text-decoration:none" onclick="event.stopPropagation()">${court.telNo}</a></div>` : ''}
@@ -997,7 +1061,8 @@ function openModal(courtId) {
     <div class="modal-section">
       <div class="modal-section-title">기본 정보</div>
       <div class="modal-row"><span class="icon">💰</span><span class="label">요금</span><span class="value" style="${court.payType==='무료'?'color:var(--avail);font-weight:600':''}">${court.payType || '-'}</span></div>
-      ${court.useStartDt ? `<div class="modal-row"><span class="icon">📅</span><span class="label">이용기간</span><span class="value">${fmtDate(court.useStartDt)} ~ ${fmtDate(court.useEndDt)}</span></div>` : ''}
+      ${court.svcStart ? `<div class="modal-row"><span class="icon">📅</span><span class="label">서비스기간</span><span class="value">${fmtDate(court.svcStart)} ~ ${fmtDate(court.svcEnd)}</span></div>` : ''}
+      ${court.useTimeStart ? `<div class="modal-row"><span class="icon">⏰</span><span class="label">이용시간</span><span class="value">${court.useTimeStart} ~ ${court.useTimeEnd}</span></div>` : ''}
       ${court.rcpStart ? `<div class="modal-row"><span class="icon">🗓️</span><span class="label">접수기간</span><span class="value">${fmtDate(court.rcpStart)} ~ ${fmtDate(court.rcpEnd)} ${ddayBadge(court)}</span></div>` : ''}
       ${court.useTgtInfo ? `<div class="modal-row"><span class="icon">👤</span><span class="label">대상</span><span class="value">${court.useTgtInfo}</span></div>` : ''}
       ${court.minClass ? `<div class="modal-row"><span class="icon">🏷️</span><span class="label">분류</span><span class="value">${court.maxClass} > ${court.minClass}</span></div>` : ''}
@@ -1049,16 +1114,16 @@ function tick() {
 // ═══════════════════════════════════════
 function getSampleData() {
   return [
-    {id:1,svcid:'S220310172740589179',name:'잠실종합운동장 테니스장',gu:'송파구',place:'잠실종합운동장',status:'접수중',payType:'유료',useStartDt:'2026-03-01',useEndDt:'2026-05-31',rcpStart:'20260225',rcpEnd:'20260228',useTgtInfo:'서울시민 누구나',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.5131,lng:127.0733},
-    {id:2,svcid:'S201129093238129783',name:'서울숲 테니스장',gu:'성동구',place:'서울숲 체육시설',status:'접수중',payType:'유료',useStartDt:'2026-03-01',useEndDt:'2026-04-30',rcpStart:'20260220',rcpEnd:'20260228',useTgtInfo:'서울시민',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.5447,lng:127.0374},
-    {id:3,svcid:'S3',name:'보라매공원 테니스장',gu:'동작구',place:'보라매공원',status:'접수종료',payType:'무료',useStartDt:'2026-02-01',useEndDt:'2026-02-28',rcpStart:'20260115',rcpEnd:'20260131',useTgtInfo:'서울시민',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.4924,lng:126.9226},
-    {id:4,svcid:'S4',name:'여의도한강공원 테니스장',gu:'영등포구',place:'여의도한강공원',status:'접수중',payType:'유료',useStartDt:'2026-03-01',useEndDt:'2026-06-30',rcpStart:'20260225',rcpEnd:'20260301',useTgtInfo:'서울시민 누구나',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.5285,lng:126.9326},
-    {id:5,svcid:'S5',name:'뚝섬한강공원 테니스장',gu:'광진구',place:'뚝섬한강공원',status:'안내중',payType:'유료',useStartDt:'2026-03-10',useEndDt:'2026-05-31',rcpStart:'20260301',rcpEnd:'20260308',useTgtInfo:'서울시민',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.5298,lng:127.0667},
-    {id:6,svcid:'S6',name:'반포한강공원 테니스장',gu:'서초구',place:'반포한강공원',status:'예약마감',payType:'유료',useStartDt:'2026-02-15',useEndDt:'2026-03-15',rcpStart:'20260210',rcpEnd:'20260214',useTgtInfo:'서울시민',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.5072,lng:126.9963},
-    {id:7,svcid:'S7',name:'올림픽공원 테니스장(주간)',gu:'송파구',place:'올림픽공원 테니스코트',status:'접수중',payType:'유료',useStartDt:'2026-03-01',useEndDt:'2026-05-31',rcpStart:'20260220',rcpEnd:'20260228',useTgtInfo:'서울시민',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.5208,lng:127.1214},
-    {id:8,svcid:'S8',name:'마포 망원 테니스장',gu:'마포구',place:'망원한강공원',status:'예약일시중지',payType:'유료',useStartDt:'2026-03-01',useEndDt:'2026-06-30',rcpStart:'',rcpEnd:'',useTgtInfo:'',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.5562,lng:126.9032},
-    {id:9,svcid:'S9',name:'강남구민체육관 테니스교실',gu:'강남구',place:'강남구민체육관',status:'접수중',payType:'유료',useStartDt:'2026-03-10',useEndDt:'2026-06-10',rcpStart:'20260301',rcpEnd:'20260307',useTgtInfo:'강남구민 우선',minClass:'테니스교실',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.4966,lng:127.0620},
-    {id:10,svcid:'S10',name:'노원구 공릉 테니스장',gu:'노원구',place:'중계체육공원',status:'접수종료',payType:'유료',useStartDt:'2026-01-15',useEndDt:'2026-02-28',rcpStart:'20260110',rcpEnd:'20260114',useTgtInfo:'서울시민',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.6296,lng:127.0744},
+    {id:1,svcid:'S220310172740589179',name:'잠실종합운동장 테니스장',gu:'송파구',place:'잠실종합운동장',status:'접수중',payType:'유료',svcStart:'2026-03-01',svcEnd:'2026-05-31',rcpStart:'20260225',rcpEnd:'20260228',useTgtInfo:'서울시민 누구나',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.5131,lng:127.0733},
+    {id:2,svcid:'S201129093238129783',name:'서울숲 테니스장',gu:'성동구',place:'서울숲 체육시설',status:'접수중',payType:'유료',svcStart:'2026-03-01',svcEnd:'2026-04-30',rcpStart:'20260220',rcpEnd:'20260228',useTgtInfo:'서울시민',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.5447,lng:127.0374},
+    {id:3,svcid:'S3',name:'보라매공원 테니스장',gu:'동작구',place:'보라매공원',status:'접수종료',payType:'무료',svcStart:'2026-02-01',svcEnd:'2026-02-28',rcpStart:'20260115',rcpEnd:'20260131',useTgtInfo:'서울시민',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.4924,lng:126.9226},
+    {id:4,svcid:'S4',name:'여의도한강공원 테니스장',gu:'영등포구',place:'여의도한강공원',status:'접수중',payType:'유료',svcStart:'2026-03-01',svcEnd:'2026-06-30',rcpStart:'20260225',rcpEnd:'20260301',useTgtInfo:'서울시민 누구나',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.5285,lng:126.9326},
+    {id:5,svcid:'S5',name:'뚝섬한강공원 테니스장',gu:'광진구',place:'뚝섬한강공원',status:'안내중',payType:'유료',svcStart:'2026-03-10',svcEnd:'2026-05-31',rcpStart:'20260301',rcpEnd:'20260308',useTgtInfo:'서울시민',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.5298,lng:127.0667},
+    {id:6,svcid:'S6',name:'반포한강공원 테니스장',gu:'서초구',place:'반포한강공원',status:'예약마감',payType:'유료',svcStart:'2026-02-15',svcEnd:'2026-03-15',rcpStart:'20260210',rcpEnd:'20260214',useTgtInfo:'서울시민',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.5072,lng:126.9963},
+    {id:7,svcid:'S7',name:'올림픽공원 테니스장(주간)',gu:'송파구',place:'올림픽공원 테니스코트',status:'접수중',payType:'유료',svcStart:'2026-03-01',svcEnd:'2026-05-31',rcpStart:'20260220',rcpEnd:'20260228',useTgtInfo:'서울시민',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.5208,lng:127.1214},
+    {id:8,svcid:'S8',name:'마포 망원 테니스장',gu:'마포구',place:'망원한강공원',status:'예약일시중지',payType:'유료',svcStart:'2026-03-01',svcEnd:'2026-06-30',rcpStart:'',rcpEnd:'',useTgtInfo:'',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.5562,lng:126.9032},
+    {id:9,svcid:'S9',name:'강남구민체육관 테니스교실',gu:'강남구',place:'강남구민체육관',status:'접수중',payType:'유료',svcStart:'2026-03-10',svcEnd:'2026-06-10',rcpStart:'20260301',rcpEnd:'20260307',useTgtInfo:'강남구민 우선',minClass:'테니스교실',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.4966,lng:127.0620},
+    {id:10,svcid:'S10',name:'노원구 공릉 테니스장',gu:'노원구',place:'중계체육공원',status:'접수종료',payType:'유료',svcStart:'2026-01-15',svcEnd:'2026-02-28',rcpStart:'20260110',rcpEnd:'20260114',useTgtInfo:'서울시민',minClass:'테니스',maxClass:'체육시설',svcUrl:'',imgUrl:'',x:0,y:0,lat:37.6296,lng:127.0744},
   ];
 }
 
