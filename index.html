@@ -230,14 +230,48 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .refresh-btn.spinning .refresh-icon{display:inline-block;animation:spin 0.8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 
+/* ═══ 태블릿 (900px 이하) ═══ */
 @media(max-width:900px){
-  .map-side{width:100%;max-height:44vh;}
+  .topbar{height:48px;padding:0 12px;gap:8px;}
+  .brand-ball{width:26px;height:26px;font-size:0.85rem;}
+  .brand-name{font-size:0.82rem;}
+  .stats-row{display:none;}
+  .v-line:nth-child(n+3){display:none;}
   .view-map{flex-direction:column-reverse;}
-  .topbar-search,.gu-select,.stats-row,.v-line:nth-child(n+3){display:none;}
-  .cal-card-grid{grid-template-columns:1fr;}
-  .sort-select{display:none;}
-  .fav-toggle{font-size:0.7rem;padding:4px 8px;}
+  .map-side{width:100%;max-height:44vh;border-left:none;border-top:1px solid var(--border);}
+  #map{min-height:200px;}
+  .cal-card-grid{grid-template-columns:repeat(auto-fill,minmax(280px,1fr));}
   .modal{width:96%;max-height:92vh;}
+}
+
+/* ═══ 모바일 (600px 이하) ═══ */
+@media(max-width:600px){
+  .topbar{height:44px;padding:0 10px;gap:6px;}
+  .brand-name{font-size:0.75rem;}
+  .brand-ball{width:24px;height:24px;font-size:0.75rem;}
+  .tab-btn{padding:4px 10px;font-size:0.7rem;}
+  .refresh-btn span:last-child{display:none;}
+  .view-map{flex-direction:column-reverse;}
+  .map-side{width:100%;max-height:50vh;border-left:none;border-top:1px solid var(--border);}
+  .map-side-header{padding:8px 12px;}
+  .legend{padding:4px 10px !important;}
+  .court-list{padding:0;}
+  .court-item{padding:10px 12px;}
+  #map{min-height:180px;}
+  .detail-panel{max-height:220px;padding:12px 14px;}
+  .cal-toolbar{padding:8px 12px;flex-wrap:wrap;gap:6px;}
+  .cal-toolbar-left,.cal-toolbar-right{width:100%;}
+  .cal-card-grid{grid-template-columns:1fr;gap:8px;}
+  .cal-scroll{padding:10px 12px;}
+  .cal-card{padding:12px;}
+  .cal-card-actions{flex-wrap:wrap;}
+  .cal-card-btn{padding:6px;font-size:0.68rem;}
+  .modal{width:98%;max-height:95vh;border-radius:12px;}
+  .modal-header{padding:14px;}
+  .modal-body{padding:0 14px 14px;}
+  .filter-pill{padding:2px 6px !important;font-size:0.6rem !important;}
+  .leaflet-popup-content-wrapper{max-width:260px !important;}
+  .leaflet-popup-content{margin:8px 10px !important;}
 }
 </style>
 </head>
@@ -476,6 +510,25 @@ function fmtPrice(v) {
   return isNaN(n) || n === 0 ? '무료' : n.toLocaleString() + '원';
 }
 
+// DTLCONT에서 요금 정보 추출
+function extractPrice(dtlCont) {
+  if (!dtlCont) return '';
+  var lines = dtlCont.replace(/\\r\\n|\\n|\\r|\r\n|\r|\n/g, '\n').split('\n');
+  var prices = [];
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+    // "1시간 4,000원" 같은 패턴 매칭
+    if (/[0-9,]+원/.test(line) && (
+      /평일|주말|공휴일|주간|야간|시간|이용요금|이용료/.test(line)
+    )) {
+      // 앞뒤 불필요한 텍스트 제거
+      var clean = line.replace(/^[-·◎●○•\s]+/, '').trim();
+      if (clean.length < 80) prices.push(clean);
+    }
+  }
+  return prices.slice(0, 3).join(' / ');
+}
+
 // ═══════════════════════════════════════
 // KEYWORD TAGGING (시간대 분류)
 // ═══════════════════════════════════════
@@ -608,6 +661,7 @@ async function loadSeoulAPI(isRetry) {
           minClass: r.MINCLASSNM || '',
           x: parseFloat(r.X) || 0,
           y: parseFloat(r.Y) || 0,
+          priceInfo: extractPrice(r.DTLCONT || ''),
         };
         if (court.x > 0 && court.y > 0) {
           court.lat = court.y;
@@ -841,11 +895,18 @@ var map = L.map(mapEl, {
   attributionControl: false
 });
 
-// CartoDB Voyager (깔끔 + 지하철역/도로명 라벨 포함)
-L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+// 지도 타일 (Voyager 시도 → 실패시 OSM fallback)
+var tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
   maxZoom: 19,
   attribution: '© OpenStreetMap · CartoDB'
 }).addTo(map);
+tileLayer.on('tileerror', function() {
+  map.removeLayer(tileLayer);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+});
 
 L.control.zoom({ position: 'bottomright' }).addTo(map);
 
@@ -1014,7 +1075,7 @@ function selectCourt(id, flyTo) {
     <table style="width:100%;border-collapse:collapse;font-size:0.75rem;">
       <tr><td style="padding:4px 0;width:24px;vertical-align:top;">📍</td><td style="padding:4px 0;color:var(--text2);"><strong>${court.gu}</strong>${court.place ? ' · ' + court.place : ''}</td></tr>
       <tr><td style="padding:4px 0;vertical-align:top;">📌</td><td style="padding:4px 0;">상태 <span class="badge ${court.status}" style="font-size:0.66rem;padding:2px 8px;">${court.status}</span></td></tr>
-      ${court.payType ? `<tr><td style="padding:4px 0;vertical-align:top;">💰</td><td style="padding:4px 0;">${court.payType}</td></tr>` : ''}
+      ${court.payType ? `<tr><td style="padding:4px 0;vertical-align:top;">💰</td><td style="padding:4px 0;">${court.payType}${court.priceInfo ? '<br><span style="font-size:0.7rem;color:var(--text2)">' + court.priceInfo + '</span>' : ''}</td></tr>` : ''}
       ${court.svcStart ? `<tr><td style="padding:4px 0;vertical-align:top;">📅</td><td style="padding:4px 0;">기간 ${fmtDate(court.svcStart)} ~ ${fmtDate(court.svcEnd)}</td></tr>` : ''}
       ${court.useTimeStart ? `<tr><td style="padding:4px 0;vertical-align:top;">⏰</td><td style="padding:4px 0;">이용시간 ${court.useTimeStart} ~ ${court.useTimeEnd}</td></tr>` : ''}
       ${court.rcpStart ? `<tr><td style="padding:4px 0;vertical-align:top;">🗓️</td><td style="padding:4px 0;">접수 ${fmtDate(court.rcpStart)} ~ ${fmtDate(court.rcpEnd)}</td></tr>` : ''}
@@ -1078,7 +1139,7 @@ function renderListView() {
         <span class="badge ${court.status}">${court.status || '미정'}</span>
       </div>
       <div class="cal-card-body">
-        ${court.payType ? `<div class="cal-card-row"><span class="icon">💰</span><span class="label">요금</span><span style="color:${court.payType === '무료' ? 'var(--avail)' : 'var(--text)'};font-weight:600">${court.payType}</span></div>` : ''}
+        ${court.payType ? `<div class="cal-card-row"><span class="icon">💰</span><span class="label">요금</span><span style="color:${court.payType === '무료' ? 'var(--avail)' : 'var(--text)'};font-weight:600">${court.payType}${court.priceInfo ? ' · <span style="font-weight:400;font-size:0.68rem;color:var(--text2)">' + court.priceInfo + '</span>' : ''}</span></div>` : ''}
         ${court.svcStart ? `<div class="cal-card-row"><span class="icon">📅</span><span class="label">기간</span>${fmtDate(court.svcStart)} ~ ${fmtDate(court.svcEnd)}</div>` : ''}
         ${court.useTimeStart ? `<div class="cal-card-row"><span class="icon">⏰</span><span class="label">시간</span>${court.useTimeStart} ~ ${court.useTimeEnd}</div>` : ''}
         ${court.rcpStart ? `<div class="cal-card-row"><span class="icon">🗓️</span><span class="label">접수</span>${fmtDate(court.rcpStart)} ~ ${fmtDate(court.rcpEnd)}</div>` : ''}
@@ -1148,7 +1209,7 @@ function openModal(courtId) {
 
     <div class="modal-section">
       <div class="modal-section-title">기본 정보</div>
-      <div class="modal-row"><span class="icon">💰</span><span class="label">요금</span><span class="value" style="${court.payType==='무료'?'color:var(--avail);font-weight:600':''}">${court.payType || '-'}</span></div>
+      <div class="modal-row"><span class="icon">💰</span><span class="label">요금</span><span class="value" style="${court.payType==='무료'?'color:var(--avail);font-weight:600':''}">${court.payType || '-'}${court.priceInfo ? '<br><span style="font-size:0.72rem;color:var(--text2);font-weight:400">' + court.priceInfo + '</span>' : ''}</span></div>
       ${court.svcStart ? `<div class="modal-row"><span class="icon">📅</span><span class="label">서비스기간</span><span class="value">${fmtDate(court.svcStart)} ~ ${fmtDate(court.svcEnd)}</span></div>` : ''}
       ${court.useTimeStart ? `<div class="modal-row"><span class="icon">⏰</span><span class="label">이용시간</span><span class="value">${court.useTimeStart} ~ ${court.useTimeEnd}</span></div>` : ''}
       ${court.rcpStart ? `<div class="modal-row"><span class="icon">🗓️</span><span class="label">접수기간</span><span class="value">${fmtDate(court.rcpStart)} ~ ${fmtDate(court.rcpEnd)} ${ddayBadge(court)}</span></div>` : ''}
