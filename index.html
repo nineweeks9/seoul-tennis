@@ -841,8 +841,8 @@ var map = L.map(mapEl, {
   attributionControl: false
 });
 
-// OpenStreetMap 타일 (심플 버전)
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+// CartoDB Voyager (깔끔 + 지하철역/도로명 라벨 포함)
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
   maxZoom: 19,
   attribution: '© OpenStreetMap · CartoDB'
 }).addTo(map);
@@ -1088,10 +1088,10 @@ function renderListView() {
       </div>
       <div class="cal-card-actions">
         <button class="cal-card-btn" onclick="toggleFav('${court.svcid}',event)">${faved ? '⭐ 즐겨찾기 해제' : '☆ 즐겨찾기'}</button>
-        <button class="cal-card-btn" onclick="event.stopPropagation();openModal(${court.id})" style="color:var(--accent)">📋 상세보기</button>
+        <button class="cal-card-btn" onclick="event.stopPropagation();switchTab('map');setTimeout(function(){selectCourt(${court.id},true)},100)" style="color:var(--accent)">🗺️ 위치확인</button>
         <a class="cal-card-btn primary" href="${url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">예약 바로가기 →</a>
       </div>`;
-    card.onclick = () => { switchTab('map'); setTimeout(() => selectCourt(court.id, true), 100); };
+    card.onclick = function(e) { if(e.target.closest('.cal-card-btn')||e.target.closest('a')) return; openModal(court.id); };
     grid.appendChild(card);
   });
 }
