@@ -100,7 +100,11 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 .fav-star:hover{opacity:0.8;transform:scale(1.2);}
 .fav-star.active{opacity:1;color:#f59e0b;}
 
-.detail-panel{border-top:1px solid var(--border);padding:14px 18px;flex-shrink:0;background:var(--panel2);min-height:120px;overflow-y:auto;max-height:240px;}
+.detail-panel{border-top:1px solid var(--border);padding:16px 20px;flex-shrink:0;background:var(--panel2);min-height:140px;overflow-y:auto;max-height:320px;}
+.detail-panel h3{font-size:0.88rem;font-weight:700;margin:0 0 10px;line-height:1.4;}
+.detail-panel .detail-info{font-size:0.75rem;line-height:2;color:var(--text2);}
+.detail-panel .detail-info br{display:block;content:'';margin:2px 0;}
+.detail-panel .goto-btn{padding:8px 14px;border-radius:8px;font-size:0.73rem;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;text-align:center;text-decoration:none;transition:all 0.15s;display:inline-flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;}
 .detail-panel h3{font-size:0.85rem;font-weight:700;margin-bottom:8px;color:var(--text);}
 .detail-info{font-size:0.74rem;color:var(--text2);line-height:2;}
 .detail-info strong{color:var(--text);}
@@ -167,10 +171,10 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 
 /* Leaflet */
 .leaflet-container{background:#e8edf2;font-family:'Noto Sans KR',sans-serif;}
-.leaflet-popup-content-wrapper{background:var(--panel)!important;border:1px solid var(--border)!important;border-radius:10px!important;box-shadow:var(--shadow-md)!important;color:var(--text)!important;}
-.leaflet-popup-content{margin:12px 15px!important;font-family:'Noto Sans KR',sans-serif!important;font-size:0.8rem!important;line-height:1.7!important;}
+.leaflet-popup-content-wrapper{background:var(--panel)!important;border:1px solid var(--border)!important;border-radius:12px!important;box-shadow:0 4px 20px rgba(0,0,0,0.15)!important;color:var(--text)!important;}
+.leaflet-popup-content{margin:10px 14px!important;font-family:'Noto Sans KR',sans-serif!important;font-size:0.8rem!important;line-height:1.5!important;overflow:visible!important;}
 .leaflet-popup-tip{background:var(--panel)!important;}
-.leaflet-popup-close-button{color:var(--muted)!important;top:7px!important;right:9px!important;}
+.leaflet-popup-close-button{color:var(--muted)!important;top:7px!important;right:9px!important;font-size:18px!important;}
 
 /* Marker */
 .court-marker{display:flex;align-items:center;justify-content:center;border-radius:50%;border:2.5px solid rgba(255,255,255,0.9);font-family:'DM Mono',monospace;font-size:0.62rem;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.25);transition:transform 0.15s;color:#fff;}
@@ -254,13 +258,6 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
   <div class="v-line"></div>
   <div class="stats-row" id="statsRow"></div>
   <div style="flex:1"></div>
-  <button class="fav-toggle" id="favToggle" onclick="toggleFavFilter()">⭐ 즐겨찾기</button>
-  <div class="search-wrap">
-    <input class="topbar-search" type="text" placeholder="시설 검색..." id="searchInput" oninput="applyFilter()">
-  </div>
-  <select class="gu-select" id="guSelect" onchange="applyFilter()">
-    <option value="">전체 구</option>
-  </select>
   <button class="refresh-btn" id="refreshBtn" onclick="loadSeoulAPI()">
     <span class="refresh-icon">🔄</span> 새로고침
   </button>
@@ -280,6 +277,15 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
         </div>
         <div class="map-side-date" id="mapSideDate"></div>
       </div>
+      <!-- 검색+구 필터 -->
+      <div style="padding:6px 14px;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-shrink:0;">
+        <input type="text" placeholder="시설 검색..." id="searchInput" oninput="applyFilter()" style="flex:1;padding:4px 10px;border:1px solid var(--border);border-radius:6px;font-size:0.72rem;font-family:Noto Sans KR,sans-serif;background:var(--panel2);color:var(--text);outline:none;">
+        <select id="guSelect" onchange="applyFilter()" style="padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:0.68rem;font-family:Noto Sans KR,sans-serif;background:var(--panel2);color:var(--text);">
+          <option value="">전체 구</option>
+        </select>
+        <button onclick="toggleFavFilter()" id="favToggle" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:0.68rem;cursor:pointer;background:var(--panel2);color:var(--muted);font-family:Noto Sans KR,sans-serif;">⭐</button>
+      </div>
+      <!-- 상태 필터 -->
       <div class="legend" style="gap:4px;flex-wrap:wrap;">
         <button class="filter-pill map-status-pill active" data-status="전체" onclick="setStatusFilter('전체')" style="padding:2px 8px;font-size:0.63rem;">전체</button>
         <button class="filter-pill map-status-pill" data-status="접수중" onclick="setStatusFilter('접수중')" style="padding:2px 8px;font-size:0.63rem;"><span class="legend-dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--avail);margin-right:3px;vertical-align:middle;"></span>접수중</button>
@@ -836,10 +842,10 @@ var map = L.map(mapEl, {
   attributionControl: false
 });
 
-// OpenStreetMap 타일
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+// OpenStreetMap 타일 (심플 버전)
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
   maxZoom: 19,
-  attribution: '© OpenStreetMap contributors'
+  attribution: '© OpenStreetMap · CartoDB'
 }).addTo(map);
 
 L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -878,29 +884,31 @@ function sortByPriority(arr) {
 
 function buildPopup(group) {
   var sorted = sortByPriority(group);
-  var html = '<div style="max-height:260px;overflow-y:auto;min-width:210px;">';
-  html += '<strong style="font-size:0.82rem;">'+(group[0].place||group[0].gu)+'</strong>';
-  if (group.length > 1) html += '<span style="font-size:0.65rem;color:var(--muted);margin-left:6px;">'+group.length+'개 프로그램</span>';
-  html += '<hr style="margin:6px 0;border:none;border-top:1px solid #e4e7ec">';
+  var html = '<div style="min-width:260px;max-height:300px;overflow-y:auto;font-family:Noto Sans KR,sans-serif;">';
+  html += '<div style="padding:0 0 6px;border-bottom:1px solid #eee;margin-bottom:4px;">';
+  html += '<span style="font-size:0.85rem;font-weight:800;">'+(group[0].place||group[0].gu)+'</span>';
+  if (group.length > 1) html += ' <span style="font-size:0.65rem;color:#9ca3af;font-weight:500;">'+group.length+'개 프로그램</span>';
+  html += '</div>';
 
-  sorted.forEach(function(c) {
+  sorted.forEach(function(c, i) {
     var dotCol = COL_MAP[statusColor(c.status)] || '#9ca3af';
-    var kws = getKeywords(c).map(function(k){return kwLabel(k);}).join(' ');
+    var kws = getKeywords(c).map(function(k){return kwLabel(k);}).join('  ');
     var shortName = c.name;
     if (group[0].place && shortName.includes(group[0].place)) {
       shortName = shortName.replace(group[0].place,'').replace(/[-–—()（）]/g,' ').trim();
     }
     if (!shortName) shortName = c.name;
+    var border = i < sorted.length - 1 ? 'border-bottom:1px solid #f3f4f6;' : '';
 
-    html += '<div style="padding:5px 0;border-bottom:1px solid #f0f0f0;cursor:pointer;" onclick="selectCourt('+c.id+',false);map.closePopup()">';
-    html += '<div style="display:flex;align-items:center;gap:5px;">';
-    html += '<span style="width:8px;height:8px;border-radius:50%;background:'+dotCol+';flex-shrink:0;display:inline-block;"></span>';
-    html += '<span style="font-size:0.73rem;font-weight:600;flex:1;">'+shortName+'</span>';
-    html += '<span style="font-size:0.6rem;color:'+dotCol+';font-weight:600;">'+c.status+'</span>';
+    html += '<div style="padding:8px 2px;'+border+'cursor:pointer;" onclick="selectCourt('+c.id+',false);map.closePopup()">';
+    html += '<div style="display:flex;align-items:center;gap:8px;">';
+    html += '<span style="width:10px;height:10px;border-radius:50%;background:'+dotCol+';flex-shrink:0;"></span>';
+    html += '<span style="font-size:0.78rem;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+shortName+'</span>';
+    html += '<span style="font-size:0.65rem;color:'+dotCol+';font-weight:700;white-space:nowrap;">'+c.status+'</span>';
     html += '</div>';
-    html += '<div style="margin-left:13px;font-size:0.62rem;color:#9ca3af;">';
+    html += '<div style="margin-left:18px;margin-top:3px;font-size:0.65rem;color:#9ca3af;white-space:nowrap;">';
     html += kws;
-    if (c.useTimeStart) html += ' ⏰'+c.useTimeStart+'~'+c.useTimeEnd;
+    if (c.useTimeStart) html += '  ⏰ '+c.useTimeStart+' ~ '+c.useTimeEnd;
     html += '</div></div>';
   });
   html += '</div>';
@@ -929,7 +937,7 @@ function renderMapMarkers() {
 
     var m = L.marker([centerLat, centerLng], {
       icon: makeIcon(best.status, isAnySel, group.length)
-    }).addTo(map).bindPopup(buildPopup(group), {maxWidth:280, minWidth:220});
+    }).addTo(map).bindPopup(buildPopup(group), {maxWidth:360, minWidth:280});
 
     if (group.length === 1) {
       m.on('click', function(){selectCourt(group[0].id, true);});
@@ -992,34 +1000,23 @@ function selectCourt(id, flyTo) {
 
   document.getElementById('detailPanel').innerHTML = `
     <h3>${court.name} ${ddayBadge(court)}</h3>
-    <div class="detail-info">
-      📍 <strong>${court.gu}</strong>${court.place ? ' · ' + court.place : ''}
-      <br>📌 상태: <span class="badge ${court.status}" style="font-size:0.66rem;padding:2px 8px;">${court.status}</span>
-      ${court.payType ? `<br>💰 ${court.payType}` : ''}
-      ${court.svcStart ? `<br>📅 기간: ${fmtDate(court.svcStart)} ~ ${fmtDate(court.svcEnd)}` : ''}${court.useTimeStart ? `<br>⏰ 이용시간: ${court.useTimeStart} ~ ${court.useTimeEnd}` : ''}
-      ${court.rcpStart ? `<br>🗓️ 접수기간: ${fmtDate(court.rcpStart)} ~ ${fmtDate(court.rcpEnd)}` : ''}
-      ${court.useTgtInfo ? `<br>👤 대상: ${court.useTgtInfo.slice(0, 50)}${court.useTgtInfo.length > 50 ? '…' : ''}` : ''}
-      ${court.telNo ? `<br>📞 <a href="tel:${court.telNo}" style="color:var(--accent);text-decoration:none">${court.telNo}</a>` : ''}
-      ${court.minClass ? `<br>🏷️ ${court.maxClass} > ${court.minClass}` : ''}
-    </div>
-    <div style="display:flex;gap:6px;margin-top:10px;">
-      <button class="goto-btn" onclick="openModal(${court.id})" style="background:var(--panel2);color:var(--text2);box-shadow:none;border:1px solid var(--border);flex:0">📋 상세</button>
-      <a class="goto-btn" href="${url}" target="_blank" rel="noopener" style="flex:1">예약 바로가기 →</a>
+    <table style="width:100%;border-collapse:collapse;font-size:0.75rem;">
+      <tr><td style="padding:4px 0;width:24px;vertical-align:top;">📍</td><td style="padding:4px 0;color:var(--text2);"><strong>${court.gu}</strong>${court.place ? ' · ' + court.place : ''}</td></tr>
+      <tr><td style="padding:4px 0;vertical-align:top;">📌</td><td style="padding:4px 0;">상태 <span class="badge ${court.status}" style="font-size:0.66rem;padding:2px 8px;">${court.status}</span></td></tr>
+      ${court.payType ? `<tr><td style="padding:4px 0;vertical-align:top;">💰</td><td style="padding:4px 0;">${court.payType}</td></tr>` : ''}
+      ${court.svcStart ? `<tr><td style="padding:4px 0;vertical-align:top;">📅</td><td style="padding:4px 0;">기간 ${fmtDate(court.svcStart)} ~ ${fmtDate(court.svcEnd)}</td></tr>` : ''}
+      ${court.useTimeStart ? `<tr><td style="padding:4px 0;vertical-align:top;">⏰</td><td style="padding:4px 0;">이용시간 ${court.useTimeStart} ~ ${court.useTimeEnd}</td></tr>` : ''}
+      ${court.rcpStart ? `<tr><td style="padding:4px 0;vertical-align:top;">🗓️</td><td style="padding:4px 0;">접수 ${fmtDate(court.rcpStart)} ~ ${fmtDate(court.rcpEnd)}</td></tr>` : ''}
+      ${court.useTgtInfo ? `<tr><td style="padding:4px 0;vertical-align:top;">👤</td><td style="padding:4px 0;">${court.useTgtInfo.slice(0, 50)}${court.useTgtInfo.length > 50 ? '…' : ''}</td></tr>` : ''}
+      ${court.telNo ? `<tr><td style="padding:4px 0;vertical-align:top;">📞</td><td style="padding:4px 0;"><a href="tel:${court.telNo}" style="color:var(--accent);text-decoration:none">${court.telNo}</a></td></tr>` : ''}
+    </table>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button class="goto-btn" onclick="openModal(${court.id})" style="background:var(--panel);color:var(--text2);box-shadow:none;border:1px solid var(--border);">📋 상세</button>
+      <a class="goto-btn" href="${url}" target="_blank" rel="noopener" style="flex:1;background:var(--accent);color:#fff;">예약 바로가기 →</a>
     </div>`;
 
   if (markers[id]) {
-    markers[id].bindPopup(
-      `<strong>${court.name}</strong><br>
-       <span style="color:var(--muted);font-size:0.72rem">${court.gu}${court.place ? ' · ' + court.place : ''}</span><br>
-       <span style="color:${statusColor(court.status)};font-weight:600">${court.status}</span>
-       ${court.payType ? ` · <span style="font-size:0.7rem">${court.payType}</span>` : ''}
-       ${ddayBadge(court)}
-       <div style="display:flex;gap:4px;margin-top:8px">
-         <button onclick="openModal(${court.id})" style="flex:1;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--panel2);color:var(--text2);font-size:0.68rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif">📋 상세</button>
-         <a href="${url}" target="_blank" rel="noopener" style="flex:1;padding:5px 8px;border-radius:6px;background:var(--accent);color:#fff;font-size:0.68rem;text-decoration:none;text-align:center;font-family:'Noto Sans KR',sans-serif">예약 →</a>
-       </div>`,
-      { maxWidth: 240, minWidth: 180 }
-    ).openPopup();
+    markers[id].openPopup();
   }
 }
 
