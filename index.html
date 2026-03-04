@@ -162,7 +162,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.35}}
 
 /* Loading */
-.loading-bar{height:3px;background:linear-gradient(90deg,var(--accent),#60a5fa,var(--accent));background-size:200% 100%;animation:shimmer 1.2s infinite;position:fixed;top:56px;left:0;right:0;z-index:999;display:none;}
+.loading-bar{height:3px;background:linear-gradient(90deg,var(--accent),#60a5fa,var(--accent));background-size:200% 100%;animation:shimmer 1.2s infinite;position:fixed;top:0;left:0;right:0;z-index:999;display:none;}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 
 /* Empty state */
@@ -281,24 +281,56 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 <div class="loading-bar" id="loadingBar"></div>
 
 <!-- TOPBAR -->
-<div class="topbar">
-  <div class="brand">
-    <div class="brand-ball">🎾</div>
-    <span class="brand-name">서울 테니스 <em>예약현황</em></span>
+<div class="topbar" style="height:auto;flex-wrap:wrap;padding:8px 20px;gap:8px;">
+  <!-- 1줄: 브랜드 + 탭 + 새로고침 -->
+  <div style="display:flex;align-items:center;gap:12px;width:100%;">
+    <div class="brand">
+      <div class="brand-ball">🎾</div>
+      <span class="brand-name">서울 테니스 <em>예약현황</em></span>
+    </div>
+    <div class="v-line"></div>
+    <div class="tab-switcher">
+      <button class="tab-btn active" id="tabMap" onclick="switchTab('map')">🗺️ 지도</button>
+      <button class="tab-btn" id="tabCal" onclick="switchTab('list')">📋 목록</button>
+      <button class="tab-btn" id="tabFav" onclick="switchTab('fav')">⭐ 즐겨찾기</button>
+    </div>
+    <div class="v-line"></div>
+    <div class="stats-row" id="statsRow"></div>
+    <div style="flex:1"></div>
+    <button class="refresh-btn" id="userBtn" onclick="userBtnClick()" title="닉네임 설정">👤</button>
+    <button class="refresh-btn" id="refreshBtn" onclick="loadSeoulAPI()">
+      <span class="refresh-icon">🔄</span> 새로고침
+    </button>
   </div>
-  <div class="v-line"></div>
-  <div class="tab-switcher">
-    <button class="tab-btn active" id="tabMap" onclick="switchTab('map')">🗺️ 지도</button>
-    <button class="tab-btn" id="tabCal" onclick="switchTab('list')">📋 목록</button>
-    <button class="tab-btn" id="tabFav" onclick="switchTab('fav')">⭐ 즐겨찾기</button>
+  <!-- 2줄: 검색 + 구 + 상태필터 + 키워드필터 + 즐겨찾기 -->
+  <div style="display:flex;align-items:center;gap:6px;width:100%;flex-wrap:wrap;">
+    <input type="text" placeholder="시설 검색..." id="searchInput" oninput="applyFilter()" style="width:160px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;font-size:0.72rem;font-family:Noto Sans KR,sans-serif;background:var(--panel2);color:var(--text);outline:none;">
+    <select id="guSelect" onchange="applyFilter()" style="padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:0.68rem;font-family:Noto Sans KR,sans-serif;background:var(--panel2);color:var(--text);">
+      <option value="">전체 구</option>
+    </select>
+    <span class="v-line" style="height:18px;margin:0 2px;"></span>
+    <button class="filter-pill map-status-pill active" data-status="전체" onclick="setStatusFilter('전체')">전체</button>
+    <button class="filter-pill map-status-pill" data-status="접수중" onclick="setStatusFilter('접수중')"><span class="legend-dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--avail);margin-right:3px;vertical-align:middle;"></span>접수중</button>
+    <button class="filter-pill map-status-pill" data-status="안내중" onclick="setStatusFilter('안내중')"><span class="legend-dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--info);margin-right:3px;vertical-align:middle;"></span>안내중</button>
+    <button class="filter-pill map-status-pill" data-status="접수종료" onclick="setStatusFilter('접수종료')"><span class="legend-dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--full);margin-right:3px;vertical-align:middle;"></span>접수종료</button>
+    <button class="filter-pill map-status-pill" data-status="예약마감" onclick="setStatusFilter('예약마감')"><span class="legend-dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#9ca3af;margin-right:3px;vertical-align:middle;"></span>마감</button>
+    <span class="v-line" style="height:18px;margin:0 2px;"></span>
+    <button class="filter-pill kw-filter-pill active" data-kw="전체" onclick="setKwFilter('전체')">전체</button>
+    <button class="filter-pill kw-filter-pill" data-kw="평일" onclick="setKwFilter('평일')">평일</button>
+    <button class="filter-pill kw-filter-pill" data-kw="주말" onclick="setKwFilter('주말')">주말</button>
+    <button class="filter-pill kw-filter-pill" data-kw="주간" onclick="setKwFilter('주간')">주간</button>
+    <button class="filter-pill kw-filter-pill" data-kw="야간" onclick="setKwFilter('야간')">야간</button>
+    <button class="filter-pill kw-filter-pill" data-kw="새벽" onclick="setKwFilter('새벽')">새벽</button>
+    <span class="v-line" style="height:18px;margin:0 2px;"></span>
+    <button class="filter-pill" onclick="toggleFavFilter()" id="favToggle">⭐</button>
+    <div style="flex:1"></div>
+    <select class="sort-select" id="sortSelect" onchange="applyFilter()" style="padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:0.68rem;font-family:Noto Sans KR,sans-serif;background:var(--panel2);color:var(--text);">
+      <option value="status">상태순</option>
+      <option value="name">이름순</option>
+      <option value="rcpEnd">접수마감 임박순</option>
+      <option value="useStart">이용시작 빠른순</option>
+    </select>
   </div>
-  <div class="v-line"></div>
-  <div class="stats-row" id="statsRow"></div>
-  <div style="flex:1"></div>
-  <button class="refresh-btn" id="userBtn" onclick="userBtnClick()" title="닉네임 설정">👤</button>
-  <button class="refresh-btn" id="refreshBtn" onclick="loadSeoulAPI()">
-    <span class="refresh-icon">🔄</span> 새로고침
-  </button>
 </div>
 
 <!-- VIEWS -->
@@ -315,30 +347,6 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
         </div>
         <div class="map-side-date" id="mapSideDate"></div>
       </div>
-      <!-- 검색+구+즐겨찾기 -->
-      <div style="padding:6px 14px;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-shrink:0;align-items:center;">
-        <input type="text" placeholder="시설 검색..." id="searchInput" oninput="applyFilter()" style="flex:1;padding:4px 10px;border:1px solid var(--border);border-radius:6px;font-size:0.72rem;font-family:Noto Sans KR,sans-serif;background:var(--panel2);color:var(--text);outline:none;">
-        <select id="guSelect" onchange="applyFilter()" style="padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:0.68rem;font-family:Noto Sans KR,sans-serif;background:var(--panel2);color:var(--text);">
-          <option value="">전체 구</option>
-        </select>
-        <button class="filter-pill" onclick="toggleFavFilter()" id="favToggle">⭐</button>
-      </div>
-      <!-- 상태 필터 -->
-      <div class="legend" style="gap:4px;flex-wrap:wrap;padding:6px 14px;align-items:center;">
-        <button class="filter-pill map-status-pill active" data-status="전체" onclick="setStatusFilter('전체')">전체</button>
-        <button class="filter-pill map-status-pill" data-status="접수중" onclick="setStatusFilter('접수중')"><span class="legend-dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--avail);margin-right:3px;vertical-align:middle;"></span>접수중</button>
-        <button class="filter-pill map-status-pill" data-status="안내중" onclick="setStatusFilter('안내중')"><span class="legend-dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--info);margin-right:3px;vertical-align:middle;"></span>안내중</button>
-        <button class="filter-pill map-status-pill" data-status="접수종료" onclick="setStatusFilter('접수종료')"><span class="legend-dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--full);margin-right:3px;vertical-align:middle;"></span>접수종료</button>
-        <button class="filter-pill map-status-pill" data-status="예약마감" onclick="setStatusFilter('예약마감')"><span class="legend-dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#9ca3af;margin-right:3px;vertical-align:middle;"></span>마감</button>
-      </div>
-      <div style="padding:6px 14px;border-bottom:1px solid var(--border);display:flex;gap:4px;flex-wrap:wrap;flex-shrink:0;background:var(--panel2);">
-        <button class="filter-pill kw-filter-pill active" data-kw="전체" onclick="setKwFilter('전체')">전체</button>
-        <button class="filter-pill kw-filter-pill" data-kw="평일" onclick="setKwFilter('평일')">평일</button>
-        <button class="filter-pill kw-filter-pill" data-kw="주말" onclick="setKwFilter('주말')">주말</button>
-        <button class="filter-pill kw-filter-pill" data-kw="주간" onclick="setKwFilter('주간')">주간</button>
-        <button class="filter-pill kw-filter-pill" data-kw="야간" onclick="setKwFilter('야간')">야간</button>
-        <button class="filter-pill kw-filter-pill" data-kw="새벽" onclick="setKwFilter('새벽')">새벽</button>
-      </div>
       <div class="court-list" id="mapCourtList">
         <div class="empty-state"><span class="emoji">⏳</span><span class="msg">데이터 불러오는 중...</span></div>
       </div>
@@ -348,44 +356,6 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 
   <!-- ② 목록뷰 -->
   <div class="view view-cal" id="viewList">
-    <div class="cal-toolbar">
-      <div class="cal-toolbar-left">
-        <span class="cal-toolbar-title" id="listTitle">전체 시설</span>
-        <span class="cal-toolbar-sub" id="listSub">0개 시설</span>
-      </div>
-      <div class="cal-toolbar-right">
-        <div class="cal-filters" id="statusFilters">
-          <button class="filter-pill active" data-status="전체" onclick="setStatusFilter('전체',this)">전체</button>
-          <button class="filter-pill" data-status="접수중" onclick="setStatusFilter('접수중',this)"><span class="legend-dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--avail);margin-right:3px;vertical-align:middle;"></span>접수중</button>
-          <button class="filter-pill" data-status="안내중" onclick="setStatusFilter('안내중',this)"><span class="legend-dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--info);margin-right:3px;vertical-align:middle;"></span>안내중</button>
-          <button class="filter-pill" data-status="접수종료" onclick="setStatusFilter('접수종료',this)"><span class="legend-dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--full);margin-right:3px;vertical-align:middle;"></span>접수종료</button>
-          <button class="filter-pill" data-status="예약마감" onclick="setStatusFilter('예약마감',this)"><span class="legend-dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#9ca3af;margin-right:3px;vertical-align:middle;"></span>마감</button>
-        </div>
-        <select class="gu-select" id="listGuSelect" onchange="applyFilter()" style="margin-left:8px;">
-          <option value="">전체 구</option>
-        </select>
-        <select class="sort-select" id="sortSelect" onchange="applyFilter()" style="margin-left:6px;">
-          <option value="status">상태순</option>
-          <option value="name">이름순</option>
-          <option value="rcpEnd">접수마감 임박순</option>
-          <option value="useStart">이용시작 빠른순</option>
-        </select>
-        <button class="filter-pill" onclick="toggleFavFilter()" id="listFavToggle" style="margin-left:6px;">⭐</button>
-      </div>
-    </div>
-    <!-- 키워드 필터 -->
-    <div class="cal-toolbar" style="padding:6px 20px;border-top:none;gap:6px;">
-      <span style="font-size:0.72rem;color:var(--muted);font-weight:600;flex-shrink:0;">시간대:</span>
-      <div class="cal-filters" id="kwFilters">
-        <button class="filter-pill kw-filter-pill active" data-kw="전체" onclick="setKwFilter('전체')">전체</button>
-        <button class="filter-pill kw-filter-pill" data-kw="평일" onclick="setKwFilter('평일')">평일</button>
-        <button class="filter-pill kw-filter-pill" data-kw="주말" onclick="setKwFilter('주말')">주말</button>
-        <button class="filter-pill kw-filter-pill" data-kw="주간" onclick="setKwFilter('주간')">주간</button>
-        <button class="filter-pill kw-filter-pill" data-kw="야간" onclick="setKwFilter('야간')">야간</button>
-        <button class="filter-pill kw-filter-pill" data-kw="새벽" onclick="setKwFilter('새벽')">새벽</button>
-      </div>
-      <button class="filter-pill" onclick="toggleFavFilter()" id="listFavToggle">⭐</button>
-    </div>
     <div class="cal-scroll" id="listScroll">
       <div class="cal-card-grid" id="listGrid">
         <div class="empty-state"><span class="emoji">⏳</span><span class="msg">데이터 불러오는 중...</span></div>
@@ -553,9 +523,7 @@ function toggleFavFilter() {
   }
   favOnly = !favOnly;
   var ft = document.getElementById('favToggle');
-  var lft = document.getElementById('listFavToggle');
   if (ft) ft.classList.toggle('active', favOnly);
-  if (lft) lft.classList.toggle('active', favOnly);
   applyFilter();
 }
 
@@ -593,9 +561,7 @@ function submitNickname() {
     if (pendingFavAction === '__filter__') {
       favOnly = !favOnly;
       var ft = document.getElementById('favToggle');
-      var lft = document.getElementById('listFavToggle');
       if (ft) ft.classList.toggle('active', favOnly);
-      if (lft) lft.classList.toggle('active', favOnly);
       applyFilter();
     } else if (pendingFavAction) {
       doToggleFav(pendingFavAction);
@@ -1036,7 +1002,7 @@ function updateStats() {
 // ═══════════════════════════════════════
 function buildGuFilter() {
   const gus = [...new Set(COURTS.map(c => c.gu))].sort();
-  ['guSelect', 'listGuSelect'].forEach(id => {
+  ['guSelect'].forEach(id => {
     const sel = document.getElementById(id);
     const cur = sel.value;
     while (sel.options.length > 1) sel.remove(1);
@@ -1047,7 +1013,7 @@ function buildGuFilter() {
 
 function applyFilter() {
   const q = document.getElementById('searchInput').value.toLowerCase();
-  const gu = document.getElementById('guSelect').value || document.getElementById('listGuSelect').value;
+  const gu = document.getElementById('guSelect').value;
   const favs = getFavs();
 
   filteredCourts = COURTS.filter(function(c) {
@@ -1104,9 +1070,7 @@ function applyFilter() {
 function setStatusFilter(s, btn) {
   statusFilter = s;
   // 목록뷰 필터 동기화
-  document.querySelectorAll('#statusFilters .filter-pill').forEach(function(b) {
-    b.classList.toggle('active', b.dataset.status === s);
-  });
+  
   // 지도뷰 필터 동기화
   document.querySelectorAll('.map-status-pill').forEach(function(b) {
     b.classList.toggle('active', b.dataset.status === s);
@@ -1366,8 +1330,8 @@ function closeDetailPanel() {
 // ═══════════════════════════════════════
 function renderListView() {
   const grid = document.getElementById('listGrid');
-  document.getElementById('listTitle').textContent = statusFilter === '전체' ? '전체 시설' : statusFilter + ' 시설';
-  document.getElementById('listSub').textContent = `${filteredCourts.length}개 시설`;
+  var lt = document.getElementById('listTitle'); if(lt) lt.textContent = statusFilter === '전체' ? '전체 시설' : statusFilter + ' 시설';
+  var ls = document.getElementById('listSub'); if(ls) ls.textContent = `${filteredCourts.length}개 시설`;
 
   // listGuSelect 동기화
   document.getElementById('listGuSelect').value = document.getElementById('guSelect').value;
