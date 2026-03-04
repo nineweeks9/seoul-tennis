@@ -739,27 +739,48 @@ function getKeywords(court) {
   if (/주간/.test(name) && !/주간\s*보호/.test(name)) timeTags.push('주간');
   if (/새벽|조조|얼리/.test(name)) timeTags.push('새벽');
 
-  // 3. 시간대 키워드 없을 때만 이용시간으로 유추
+  // 3. 시간대 키워드 없을 때 → 같은 place 보완 추론 → 이용시간 유추
   if (timeTags.length === 0) {
-    var startH = court.useTimeStart ? parseInt(court.useTimeStart.split(':')[0]) : -1;
-    var endH = court.useTimeEnd ? parseInt(court.useTimeEnd.split(':')[0]) : -1;
+    var pk = court._placeKw || { dayExplicit: [], timeExplicit: [] };
+    // 같은 place에 "야간" 전용이 있으면 → 이 코트는 "주간"
+    // 같은 place에 "주간" 전용이 있으면 → 이 코트는 "야간"
+    // 둘 다 있으면 → 이용시간으로 판단
+    var hasYagan = pk.timeExplicit.indexOf('야간') >= 0;
+    var hasJugan = pk.timeExplicit.indexOf('주간') >= 0;
+    var hasSaebyeok = pk.timeExplicit.indexOf('새벽') >= 0;
 
-    if (startH >= 0 && endH >= 0) {
-      if (startH >= 18) {
-        timeTags.push('야간');
-      } else if (endH <= 18) {
-        timeTags.push('주간');
+    if (hasYagan && !hasJugan) {
+      timeTags.push('주간');
+    } else if (hasJugan && !hasYagan) {
+      timeTags.push('야간');
+    } else {
+      // 이용시간으로 유추
+      var startH = court.useTimeStart ? parseInt(court.useTimeStart.split(':')[0]) : -1;
+      var endH = court.useTimeEnd ? parseInt(court.useTimeEnd.split(':')[0]) : -1;
+      if (startH >= 0 && endH >= 0) {
+        if (startH >= 18) timeTags.push('야간');
+        else if (endH <= 18) timeTags.push('주간');
+        else timeTags.push('주간', '야간');
       } else {
         timeTags.push('주간', '야간');
       }
-    } else {
-      // 이용시간도 없으면 주간+야간 모두
-      timeTags.push('주간', '야간');
     }
   }
 
-  // 4. 요일 키워드 없으면 평일+주말
-  if (dayTags.length === 0) dayTags.push('평일', '주말');
+  // 4. 요일 키워드 없을 때 → 같은 place 보완 추론
+  if (dayTags.length === 0) {
+    var pk2 = court._placeKw || { dayExplicit: [], timeExplicit: [] };
+    var hasJumal = pk2.dayExplicit.indexOf('주말') >= 0;
+    var hasPyeongil = pk2.dayExplicit.indexOf('평일') >= 0;
+
+    if (hasJumal && !hasPyeongil) {
+      dayTags.push('평일');
+    } else if (hasPyeongil && !hasJumal) {
+      dayTags.push('주말');
+    } else {
+      dayTags.push('평일', '주말');
+    }
+  }
 
   return dayTags.concat(timeTags);
 }
@@ -895,6 +916,25 @@ async function loadSeoulAPI(isRetry) {
         });
       });
 
+      // 같은 place 내 키워드 보완 추론
+      // 예: 같은 장소에 "주말" 전용이 있으면 나머지는 "평일"로, "야간" 전용이 있으면 나머지는 "주간"으로
+      var placeKeywords = {};
+      COURTS.forEach(function(c) {
+        var place = c.place || c.name;
+        if (!placeKeywords[place]) placeKeywords[place] = { dayExplicit: [], timeExplicit: [] };
+        var name = c.name || '';
+        // 이름에서 명시적으로 언급된 키워드만 수집
+        if (/평일/.test(name) || /주중/.test(name)) placeKeywords[place].dayExplicit.push('평일');
+        if (/토[\/·,]|\/일|주말|토요|일요|공휴일|토일/.test(name)) placeKeywords[place].dayExplicit.push('주말');
+        if (/야간/.test(name)) placeKeywords[place].timeExplicit.push('야간');
+        if (/주간/.test(name) && !/주간\s*보호/.test(name)) placeKeywords[place].timeExplicit.push('주간');
+        if (/새벽|조조|얼리/.test(name)) placeKeywords[place].timeExplicit.push('새벽');
+      });
+      // 각 place별로 캐시 저장
+      COURTS.forEach(function(c) {
+        c._placeKw = placeKeywords[c.place || c.name] || { dayExplicit: [], timeExplicit: [] };
+      });
+
       apiRetryCount = 0;
       setApiStatus(`🟢 실시간 · ${rows.length}건`, true);
       showToast(`✅ ${rows.length}개 시설 데이터 갱신 완료`);
@@ -915,6 +955,19 @@ async function loadSeoulAPI(isRetry) {
       COURTS = getSampleData();
     }
     COURTS.forEach(c => c.dday = calcDday(c));
+    // 샘플 데이터에도 place 키워드 보완 추론 적용
+    var spk = {};
+    COURTS.forEach(function(c) {
+      var place = c.place || c.name;
+      var name = c.name || '';
+      if (!spk[place]) spk[place] = { dayExplicit: [], timeExplicit: [] };
+      if (/평일/.test(name) || /주중/.test(name)) spk[place].dayExplicit.push('평일');
+      if (/토[\/·,]|\/일|주말|토요|일요|공휴일|토일/.test(name)) spk[place].dayExplicit.push('주말');
+      if (/야간/.test(name)) spk[place].timeExplicit.push('야간');
+      if (/주간/.test(name) && !/주간\s*보호/.test(name)) spk[place].timeExplicit.push('주간');
+      if (/새벽|조조|얼리/.test(name)) spk[place].timeExplicit.push('새벽');
+    });
+    COURTS.forEach(function(c) { c._placeKw = spk[c.place || c.name] || { dayExplicit: [], timeExplicit: [] }; });
     setApiStatus('🟡 ' + (COURTS.length > 0 ? '샘플 데이터' : '오류'), false);
     showToast(`⚠️ API 연결 실패 — ${e.message}`);
   }
