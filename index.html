@@ -293,6 +293,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
   <div class="v-line"></div>
   <div class="stats-row" id="statsRow"></div>
   <div style="flex:1"></div>
+  <button class="refresh-btn" id="userBtn" onclick="userBtnClick()" title="닉네임 설정">👤</button>
   <button class="refresh-btn" id="refreshBtn" onclick="loadSeoulAPI()">
     <span class="refresh-icon">🔄</span> 새로고침
   </button>
@@ -312,12 +313,13 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
         </div>
         <div class="map-side-date" id="mapSideDate"></div>
       </div>
-      <!-- 검색+구 필터 -->
+      <!-- 검색+구+즐겨찾기 -->
       <div style="padding:6px 14px;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-shrink:0;align-items:center;">
         <input type="text" placeholder="시설 검색..." id="searchInput" oninput="applyFilter()" style="flex:1;padding:4px 10px;border:1px solid var(--border);border-radius:6px;font-size:0.72rem;font-family:Noto Sans KR,sans-serif;background:var(--panel2);color:var(--text);outline:none;">
         <select id="guSelect" onchange="applyFilter()" style="padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:0.68rem;font-family:Noto Sans KR,sans-serif;background:var(--panel2);color:var(--text);">
           <option value="">전체 구</option>
         </select>
+        <button class="filter-pill" onclick="toggleFavFilter()" id="favToggle">⭐</button>
       </div>
       <!-- 상태 필터 -->
       <div class="legend" style="gap:4px;flex-wrap:wrap;padding:6px 14px;align-items:center;">
@@ -326,8 +328,6 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
         <button class="filter-pill map-status-pill" data-status="안내중" onclick="setStatusFilter('안내중')"><span class="legend-dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--info);margin-right:3px;vertical-align:middle;"></span>안내중</button>
         <button class="filter-pill map-status-pill" data-status="접수종료" onclick="setStatusFilter('접수종료')"><span class="legend-dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--full);margin-right:3px;vertical-align:middle;"></span>접수종료</button>
         <button class="filter-pill map-status-pill" data-status="예약마감" onclick="setStatusFilter('예약마감')"><span class="legend-dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#9ca3af;margin-right:3px;vertical-align:middle;"></span>마감</button>
-        <span style="width:1px;height:16px;background:var(--border);margin:0 2px;"></span>
-        <button class="filter-pill" onclick="toggleFavFilter()" id="favToggle">⭐ 즐겨찾기</button>
       </div>
       <div style="padding:6px 14px;border-bottom:1px solid var(--border);display:flex;gap:4px;flex-wrap:wrap;flex-shrink:0;background:var(--panel2);">
         <button class="filter-pill kw-filter-pill active" data-kw="전체" onclick="setKwFilter('전체')">전체</button>
@@ -402,6 +402,22 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
   </div>
 </div>
 
+<!-- Nickname Modal -->
+<div class="modal-overlay" id="nicknameOverlay" style="display:none;" onclick="closeNicknameModal()">
+  <div style="background:var(--panel);border-radius:16px;padding:28px 24px;max-width:340px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.2);text-align:center;" onclick="event.stopPropagation()">
+    <div style="font-size:1.5rem;margin-bottom:8px;">⭐</div>
+    <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:4px;">즐겨찾기 동기화</h3>
+    <p style="font-size:0.73rem;color:var(--muted);margin-bottom:16px;line-height:1.5;">닉네임을 입력하면 다른 기기에서도<br>즐겨찾기를 불러올 수 있어요</p>
+    <input type="text" id="nicknameInput" placeholder="닉네임 (1~20자)" maxlength="20"
+      onkeydown="if(event.key==='Enter')submitNickname()"
+      style="width:100%;padding:10px 14px;border:2px solid var(--border);border-radius:10px;font-size:0.85rem;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--panel2);color:var(--text);text-align:center;margin-bottom:12px;transition:border-color 0.15s;">
+    <div style="display:flex;gap:8px;">
+      <button onclick="closeNicknameModal()" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--panel2);color:var(--text2);font-size:0.78rem;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+      <button onclick="submitNickname()" style="flex:1;padding:10px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">확인</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
@@ -461,26 +477,159 @@ const KNOWN_LOCS = {
 };
 
 // ═══════════════════════════════════════
-// FAVORITES (localStorage)
+// FAVORITES (서버 + localStorage 병행)
 // ═══════════════════════════════════════
+var currentUser = localStorage.getItem('tennis_user') || '';
+var favCache = []; // 메모리 캐시
+var pendingFavAction = null; // 닉네임 입력 대기 중인 액션
+
 function getFavs() {
-  try { return JSON.parse(localStorage.getItem('tennis_favs') || '[]'); } catch(e) { return []; }
+  return favCache;
 }
-function setFavs(arr) { localStorage.setItem('tennis_favs', JSON.stringify(arr)); }
-function isFav(svcid) { return getFavs().includes(svcid); }
+function isFav(svcid) { return favCache.includes(svcid); }
+
+function setFavs(arr) {
+  favCache = arr;
+  localStorage.setItem('tennis_favs', JSON.stringify(arr));
+  if (currentUser) {
+    fetch('/api/favs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user: currentUser, favs: arr })
+    }).catch(function(){});
+  }
+}
+
 function toggleFav(svcid, e) {
   if (e) { e.stopPropagation(); e.preventDefault(); }
-  let favs = getFavs();
-  if (favs.includes(svcid)) favs = favs.filter(f => f !== svcid);
+  // 닉네임 없으면 입력 요청
+  if (!currentUser) {
+    pendingFavAction = svcid;
+    showNicknameModal();
+    return;
+  }
+  doToggleFav(svcid);
+}
+
+function doToggleFav(svcid) {
+  var favs = getFavs().slice();
+  if (favs.includes(svcid)) favs = favs.filter(function(f){return f !== svcid;});
   else favs.push(svcid);
   setFavs(favs);
   renderAll();
 }
+
 function toggleFavFilter() {
+  if (!currentUser && favCache.length === 0) {
+    pendingFavAction = '__filter__';
+    showNicknameModal();
+    return;
+  }
   favOnly = !favOnly;
   document.getElementById('favToggle').classList.toggle('active', favOnly);
   applyFilter();
 }
+
+// ═══════════════════════════════════════
+// NICKNAME MODAL
+// ═══════════════════════════════════════
+function showNicknameModal() {
+  document.getElementById('nicknameOverlay').style.display = 'flex';
+  var input = document.getElementById('nicknameInput');
+  input.value = '';
+  setTimeout(function(){ input.focus(); }, 100);
+}
+
+function closeNicknameModal() {
+  document.getElementById('nicknameOverlay').style.display = 'none';
+  pendingFavAction = null;
+}
+
+function submitNickname() {
+  var input = document.getElementById('nicknameInput');
+  var name = (input.value || '').trim();
+  if (name.length < 1 || name.length > 20) {
+    input.style.borderColor = 'var(--full)';
+    return;
+  }
+  currentUser = name;
+  localStorage.setItem('tennis_user', name);
+  closeNicknameModal();
+  updateUserBtn();
+  showToast('⭐ ' + name + '님 등록됨');
+
+  // 서버에서 즐겨찾기 불러오기
+  loadFavsFromServer(name).then(function() {
+    // 대기 중인 액션 실행
+    if (pendingFavAction === '__filter__') {
+      favOnly = !favOnly;
+      document.getElementById('favToggle').classList.toggle('active', favOnly);
+      applyFilter();
+    } else if (pendingFavAction) {
+      doToggleFav(pendingFavAction);
+    }
+    pendingFavAction = null;
+  });
+}
+
+// 서버에서 즐겨찾기 불러오기
+async function loadFavsFromServer(username) {
+  try {
+    var res = await fetch('/api/favs?user=' + encodeURIComponent(username));
+    var data = await res.json();
+    if (data.favs && data.favs.length > 0) {
+      favCache = data.favs;
+      localStorage.setItem('tennis_favs', JSON.stringify(favCache));
+      renderAll();
+      showToast('⭐ 즐겨찾기 ' + favCache.length + '개 불러옴');
+    } else {
+      var local = [];
+      try { local = JSON.parse(localStorage.getItem('tennis_favs') || '[]'); } catch(e){}
+      if (local.length > 0) {
+        favCache = local;
+        fetch('/api/favs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user: username, favs: local })
+        }).catch(function(){});
+      }
+    }
+  } catch(e) {
+    showToast('⚠️ 서버 연결 실패, 로컬 모드');
+  }
+}
+
+// 초기화: 로컬 캐시 로드 + 서버 동기화
+try { favCache = JSON.parse(localStorage.getItem('tennis_favs') || '[]'); } catch(e) { favCache = []; }
+if (currentUser) { loadFavsFromServer(currentUser); }
+
+function userBtnClick() {
+  if (currentUser) {
+    if (confirm(currentUser + '님으로 로그인 중입니다.\n로그아웃하시겠습니까?')) {
+      currentUser = '';
+      localStorage.removeItem('tennis_user');
+      updateUserBtn();
+      showToast('로그아웃됨');
+    }
+  } else {
+    showNicknameModal();
+  }
+}
+
+function updateUserBtn() {
+  var btn = document.getElementById('userBtn');
+  if (!btn) return;
+  if (currentUser) {
+    btn.innerHTML = '👤 ' + currentUser;
+    btn.title = currentUser + ' (클릭하면 로그아웃)';
+  } else {
+    btn.innerHTML = '👤';
+    btn.title = '닉네임 설정';
+  }
+}
+// 초기 UI
+setTimeout(updateUserBtn, 0);
+
 
 // ═══════════════════════════════════════
 // STATUS HELPERS
