@@ -114,6 +114,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 
 /* CAL VIEW */
 .view-cal{flex-direction:column;overflow:hidden;}
+.view-fav{flex-direction:column;overflow:hidden;}
 .cal-toolbar{padding:10px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;background:var(--panel);box-shadow:var(--shadow);}
 .cal-toolbar-left{display:flex;flex-direction:column;flex-shrink:0;}
 .cal-toolbar-title{font-size:0.9rem;font-weight:700;color:var(--text);}
@@ -289,6 +290,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
   <div class="tab-switcher">
     <button class="tab-btn active" id="tabMap" onclick="switchTab('map')">🗺️ 지도</button>
     <button class="tab-btn" id="tabCal" onclick="switchTab('list')">📋 목록</button>
+    <button class="tab-btn" id="tabFav" onclick="switchTab('fav')">⭐ 즐겨찾기</button>
   </div>
   <div class="v-line"></div>
   <div class="stats-row" id="statsRow"></div>
@@ -368,6 +370,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
           <option value="rcpEnd">접수마감 임박순</option>
           <option value="useStart">이용시작 빠른순</option>
         </select>
+        <button class="filter-pill" onclick="toggleFavFilter()" id="listFavToggle" style="margin-left:6px;">⭐</button>
       </div>
     </div>
     <!-- 키워드 필터 -->
@@ -381,11 +384,28 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
         <button class="filter-pill kw-filter-pill" data-kw="야간" onclick="setKwFilter('야간')">야간</button>
         <button class="filter-pill kw-filter-pill" data-kw="새벽" onclick="setKwFilter('새벽')">새벽</button>
       </div>
+      <button class="filter-pill" onclick="toggleFavFilter()" id="listFavToggle">⭐</button>
     </div>
     <div class="cal-scroll" id="listScroll">
       <div class="cal-card-grid" id="listGrid">
         <div class="empty-state"><span class="emoji">⏳</span><span class="msg">데이터 불러오는 중...</span></div>
       </div>
+    </div>
+  </div>
+
+  <!-- ③ 즐겨찾기뷰 -->
+  <div class="view view-fav" id="viewFav">
+    <div class="cal-toolbar">
+      <div class="cal-toolbar-left">
+        <span class="cal-toolbar-title">⭐ 즐겨찾기</span>
+        <span class="cal-toolbar-sub" id="favSub">0개 테니스장</span>
+      </div>
+      <div class="cal-toolbar-right">
+        <button class="filter-pill" id="favUserBtn" onclick="userBtnClick()" style="font-size:0.72rem;"></button>
+      </div>
+    </div>
+    <div class="cal-scroll" id="favScroll">
+      <div id="favGrid" style="padding:16px 20px;"></div>
     </div>
   </div>
 
@@ -486,7 +506,12 @@ var pendingFavAction = null; // 닉네임 입력 대기 중인 액션
 function getFavs() {
   return favCache;
 }
-function isFav(svcid) { return favCache.includes(svcid); }
+function isFav(svcid) {
+  // place 기반: 해당 court의 place가 favCache에 있으면 true
+  var court = COURTS.find(function(c){ return c.svcid === svcid; });
+  if (!court || !court.place) return favCache.includes(svcid);
+  return favCache.includes(court.place);
+}
 
 function setFavs(arr) {
   favCache = arr;
@@ -502,7 +527,6 @@ function setFavs(arr) {
 
 function toggleFav(svcid, e) {
   if (e) { e.stopPropagation(); e.preventDefault(); }
-  // 닉네임 없으면 입력 요청
   if (!currentUser) {
     pendingFavAction = svcid;
     showNicknameModal();
@@ -512,9 +536,11 @@ function toggleFav(svcid, e) {
 }
 
 function doToggleFav(svcid) {
+  var court = COURTS.find(function(c){ return c.svcid === svcid; });
+  var key = (court && court.place) ? court.place : svcid;
   var favs = getFavs().slice();
-  if (favs.includes(svcid)) favs = favs.filter(function(f){return f !== svcid;});
-  else favs.push(svcid);
+  if (favs.includes(key)) favs = favs.filter(function(f){return f !== key;});
+  else favs.push(key);
   setFavs(favs);
   renderAll();
 }
@@ -526,7 +552,10 @@ function toggleFavFilter() {
     return;
   }
   favOnly = !favOnly;
-  document.getElementById('favToggle').classList.toggle('active', favOnly);
+  var ft = document.getElementById('favToggle');
+  var lft = document.getElementById('listFavToggle');
+  if (ft) ft.classList.toggle('active', favOnly);
+  if (lft) lft.classList.toggle('active', favOnly);
   applyFilter();
 }
 
@@ -563,7 +592,10 @@ function submitNickname() {
     // 대기 중인 액션 실행
     if (pendingFavAction === '__filter__') {
       favOnly = !favOnly;
-      document.getElementById('favToggle').classList.toggle('active', favOnly);
+      var ft = document.getElementById('favToggle');
+      var lft = document.getElementById('listFavToggle');
+      if (ft) ft.classList.toggle('active', favOnly);
+      if (lft) lft.classList.toggle('active', favOnly);
       applyFilter();
     } else if (pendingFavAction) {
       doToggleFav(pendingFavAction);
@@ -969,7 +1001,7 @@ function applyFilter() {
     if (q && !c.name.toLowerCase().includes(q) && !c.gu.includes(q) && !c.place.toLowerCase().includes(q)) return false;
     if (gu && c.gu !== gu) return false;
     if (statusFilter !== '전체' && c.status !== statusFilter) return false;
-    if (favOnly && !favs.includes(c.svcid)) return false;
+    if (favOnly && !isFav(c.svcid)) return false;
     if (kwFilters.length > 0) {
       var kws = getKeywords(c);
       // AND: 선택한 필터를 모두 가지고 있어야 함
@@ -1027,13 +1059,16 @@ function switchTab(tab) {
   currentTab = tab;
   document.getElementById('tabMap').classList.toggle('active', tab === 'map');
   document.getElementById('tabCal').classList.toggle('active', tab === 'list');
+  document.getElementById('tabFav').classList.toggle('active', tab === 'fav');
   document.getElementById('viewMap').classList.toggle('active', tab === 'map');
   document.getElementById('viewList').classList.toggle('active', tab === 'list');
+  document.getElementById('viewFav').classList.toggle('active', tab === 'fav');
   if (tab === 'map') {
     setTimeout(fixMap, 50);
     setTimeout(fixMap, 300);
     setTimeout(fixMap, 800);
   }
+  if (tab === 'fav') renderFavView();
   renderAll();
   if (typeof updateUrlParams === 'function') updateUrlParams();
 }
@@ -1045,6 +1080,7 @@ function renderAll() {
   renderMapList();
   renderMapMarkers();
   renderListView();
+  renderFavView();
 }
 
 // ═══════════════════════════════════════
@@ -1318,6 +1354,105 @@ function renderListView() {
     card.onclick = function(e) { if(e.target.closest('.cal-card-btn')||e.target.closest('a')) return; openModal(court.id); };
     grid.appendChild(card);
   });
+}
+
+// ═══════════════════════════════════════
+// FAV VIEW (테니스장 단위로 그룹핑)
+// ═══════════════════════════════════════
+function renderFavView() {
+  var grid = document.getElementById('favGrid');
+  var sub = document.getElementById('favSub');
+  var userBtn = document.getElementById('favUserBtn');
+  if (!grid) return;
+
+  // 유저 버튼 업데이트
+  if (userBtn) {
+    userBtn.textContent = currentUser ? '👤 ' + currentUser : '👤 로그인';
+  }
+
+  // place 기반으로 즐겨찾기된 코트 필터
+  var favCourts = COURTS.filter(function(c) { return isFav(c.svcid); });
+
+  if (favCourts.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state" style="padding:60px 20px;">
+        <span class="emoji">⭐</span>
+        <span class="msg">즐겨찾기한 테니스장이 없어요</span>
+        <span class="sub">지도나 목록에서 ☆를 눌러 추가해보세요</span>
+      </div>`;
+    if (sub) sub.textContent = '0개 테니스장';
+    return;
+  }
+
+  // place 기준으로 그룹핑
+  var groups = {};
+  favCourts.forEach(function(c) {
+    var key = c.place || c.name;
+    if (!groups[key]) groups[key] = { place: key, gu: c.gu, courts: [] };
+    groups[key].courts.push(c);
+  });
+
+  var groupArr = Object.values(groups);
+  if (sub) sub.textContent = groupArr.length + '개 테니스장 · ' + favCourts.length + '개 프로그램';
+
+  grid.innerHTML = '';
+  groupArr.forEach(function(g) {
+    var section = document.createElement('div');
+    section.style.cssText = 'margin-bottom:20px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--panel);';
+
+    // 헤더: 테니스장 이름 + 구 + 즐겨찾기 해제
+    var headerHtml = `
+      <div style="padding:14px 16px;background:var(--panel2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div style="font-size:0.88rem;font-weight:700;color:var(--text);">🎾 ${g.place}</div>
+          <div style="font-size:0.7rem;color:var(--muted);margin-top:2px;">📍 ${g.gu} · ${g.courts.length}개 프로그램</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button onclick="event.stopPropagation();removeFavPlace('${g.place.replace(/'/g,"\\'")}')" style="padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--muted);font-size:0.68rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">⭐ 해제</button>
+        </div>
+      </div>`;
+
+    // 프로그램 목록
+    var listHtml = '';
+    g.courts.forEach(function(court) {
+      var col = statusColor(court.status);
+      var url = court.svcUrl || (court.svcid ?
+        'https://yeyak.seoul.go.kr/web/reservation/selectReservView.do?rsv_svc_id=' + court.svcid :
+        'https://yeyak.seoul.go.kr');
+      var kwTags = getKeywords(court).map(function(k) {
+        return '<span class="ci-tag" style="background:var(--accent-bg);color:var(--accent);border-color:rgba(37,99,235,0.2);font-size:0.6rem">' + k + '</span>';
+      }).join('');
+
+      listHtml += `
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;" onclick="openModal(${court.id})">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
+            <div style="font-size:0.78rem;font-weight:600;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${court.name} ${ddayBadge(court)}</div>
+            <span class="badge ${court.status}" style="flex-shrink:0;">${court.status || '미정'}</span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
+            ${kwTags}
+            ${court.payType ? '<span class="ci-tag" style="font-size:0.6rem;' + (court.payType === '무료' ? 'color:var(--avail);border-color:rgba(22,163,74,0.2);background:var(--avail-bg)' : 'color:var(--accent);border-color:rgba(37,99,235,0.2);background:var(--accent-bg)') + '">' + court.payType + '</span>' : ''}
+            ${court.useTimeStart ? '<span style="font-size:0.65rem;color:var(--muted);">⏰ ' + court.useTimeStart + '~' + court.useTimeEnd + '</span>' : ''}
+          </div>
+          <div style="margin-top:8px;display:flex;gap:6px;">
+            <button class="cal-card-btn" onclick="event.stopPropagation();switchTab('map');setTimeout(function(){selectCourt(${court.id},true)},100)" style="color:var(--accent);font-size:0.68rem;">🗺️ 위치</button>
+            <a class="cal-card-btn primary" href="${url}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:0.68rem;">예약 바로가기 →</a>
+          </div>
+        </div>`;
+    });
+
+    section.innerHTML = headerHtml + listHtml;
+    grid.appendChild(section);
+  });
+}
+
+function removeFavPlace(place) {
+  var favs = getFavs().slice();
+  favs = favs.filter(function(f) { return f !== place; });
+  setFavs(favs);
+  renderFavView();
+  renderAll();
+  showToast('⭐ ' + place + ' 즐겨찾기 해제');
 }
 
 // ═══════════════════════════════════════
