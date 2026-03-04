@@ -1017,10 +1017,19 @@ function applyFilter() {
   const statusOrder = { '접수중': 0, '안내중': 1, '예약일시중지': 2, '접수종료': 3, '예약마감': 4 };
 
   filteredCourts.sort((a, b) => {
+    // 키워드 필터 활성 시: 정확 매칭(해당 키워드만 가진 것) 우선
+    if (kwFilters.length > 0) {
+      var aKws = getKeywords(a);
+      var bKws = getKeywords(b);
+      // 필터 외 추가 키워드 수 (적을수록 정확 매칭)
+      var aExtra = aKws.filter(function(k){ return kwFilters.indexOf(k) < 0; }).length;
+      var bExtra = bKws.filter(function(k){ return kwFilters.indexOf(k) < 0; }).length;
+      if (aExtra !== bExtra) return aExtra - bExtra;
+    }
+
     if (sortBy === 'status') return (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9);
     if (sortBy === 'name') return a.name.localeCompare(b.name);
     if (sortBy === 'rcpEnd') {
-      // 접수마감 임박순 (접수중만 위로, D-Day 가까운 순)
       const aAccepting = a.status === '접수중' ? 0 : 1;
       const bAccepting = b.status === '접수중' ? 0 : 1;
       if (aAccepting !== bAccepting) return aAccepting - bAccepting;
