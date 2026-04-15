@@ -1,0 +1,15 @@
+name: Check Tennis Status
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call check-status API
+        run: |
+          curl -sf -X GET https://seoul-tennis.vercel.app/api/check-status \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
