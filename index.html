@@ -531,14 +531,18 @@ function toggleFavFilter() {
 // NICKNAME MODAL
 // ═══════════════════════════════════════
 function showNicknameModal() {
-  document.getElementById('nicknameOverlay').style.display = 'flex';
+  var el = document.getElementById('nicknameOverlay');
+  el.style.removeProperty('display');
+  el.classList.add('open');
   var input = document.getElementById('nicknameInput');
   input.value = '';
   setTimeout(function(){ input.focus(); }, 100);
 }
 
 function closeNicknameModal() {
-  document.getElementById('nicknameOverlay').style.display = 'none';
+  var el = document.getElementById('nicknameOverlay');
+  el.classList.remove('open');
+  el.style.display = 'none';
   pendingFavAction = null;
 }
 
