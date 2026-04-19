@@ -1,7 +1,7 @@
 const http = require('http');
 
-const KV = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
-const KV_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+const KV = process.env.UPSTASH_REDIS_REST_URL;
+const KV_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 const TG_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const SEOUL_KEY = process.env.SEOUL_API_KEY || 'sample';
 
