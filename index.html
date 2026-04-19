@@ -307,7 +307,6 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
     <div class="tab-switcher">
       <button class="tab-btn active" id="tabMap" onclick="switchTab('map')">🗺️ 지도</button>
       <button class="tab-btn" id="tabCal" onclick="switchTab('list')">📋 목록</button>
-      <button class="tab-btn" id="tabFav" onclick="switchTab('fav')">⭐ 즐겨찾기</button>
     </div>
     <div class="v-line"></div>
     <div class="stats-row" id="statsRow"></div>
@@ -430,21 +429,6 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
     </div>
   </div>
 
-  <!-- ③ 즐겨찾기뷰 -->
-  <div class="view view-fav" id="viewFav">
-    <div class="cal-toolbar">
-      <div class="cal-toolbar-left">
-        <span class="cal-toolbar-title">⭐ 즐겨찾기</span>
-        <span class="cal-toolbar-sub" id="favSub">0개 테니스장</span>
-      </div>
-      <div class="cal-toolbar-right">
-        <button class="filter-pill" id="favUserBtn" onclick="userBtnClick()" style="font-size:0.72rem;"></button>
-      </div>
-    </div>
-    <div class="cal-scroll" id="favScroll">
-      <div id="favGrid" style="padding:16px 20px;"></div>
-    </div>
-  </div>
 
 </div>
 
@@ -793,23 +777,38 @@ function renderMpFavs() {
     return;
   }
   var courts = COURTS.filter(function(c){ return favIds.includes(c.svcid); });
-  // 중복 place 제거하여 장소 단위로 표시
-  var seen = {};
-  var html = '';
+  // 장소(place) 단위로 그룹핑
+  var groups = {};
+  var groupOrder = [];
   courts.forEach(function(c) {
     var key = c.place || c.name;
-    if (seen[key]) return;
-    seen[key] = true;
-    var dotCol = (statusColor(c.status) || '#9ca3af').replace('var(--avail)','#16a34a').replace('var(--info)','#0ea5e9').replace('var(--few)','#d97706').replace('var(--full)','#dc2626');
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">';
-    html += '<div>';
-    html += '<div style="font-size:0.82rem;font-weight:600;">' + (c.place || c.name) + '</div>';
-    html += '<div style="font-size:0.68rem;color:var(--muted);">📍 ' + c.gu + '</div>';
+    if (!groups[key]) { groups[key] = { place: key, gu: c.gu, svcids: [], statuses: [] }; groupOrder.push(key); }
+    groups[key].svcids.push(c.svcid);
+    groups[key].statuses.push(c.status);
+  });
+  var html = '';
+  groupOrder.forEach(function(key) {
+    var g = groups[key];
+    var bestStatus = g.statuses.includes('접수중') ? '접수중' : g.statuses.includes('안내중') ? '안내중' : g.statuses[0];
+    var dotCol = bestStatus === '접수중' ? '#16a34a' : bestStatus === '안내중' ? '#0ea5e9' : '#dc2626';
+    var svcidsJson = JSON.stringify(g.svcids).replace(/"/g, '&quot;');
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);gap:8px;">';
+    html += '<div style="flex:1;min-width:0;">';
+    html += '<div style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + key + '</div>';
+    html += '<div style="font-size:0.68rem;color:var(--muted);margin-top:2px;">📍 ' + g.gu + ' · ' + g.svcids.length + '개 프로그램</div>';
     html += '</div>';
-    html += '<span style="font-size:0.68rem;color:' + dotCol + ';font-weight:700;">' + c.status + '</span>';
+    html += '<span style="font-size:0.7rem;color:' + dotCol + ';font-weight:700;flex-shrink:0;">' + bestStatus + '</span>';
+    html += '<button onclick="removeFavGroup(' + svcidsJson + ')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--panel2);color:var(--muted);font-size:0.7rem;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;flex-shrink:0;">해제</button>';
     html += '</div>';
   });
-  list.innerHTML = html || '<div style="font-size:0.78rem;color:var(--muted);">데이터 로딩 중...</div>';
+  list.innerHTML = html;
+}
+
+function removeFavGroup(svcids) {
+  var favs = getFavs().filter(function(id){ return !svcids.includes(id); });
+  setFavs(favs);
+  renderMpFavs();
+  renderAll();
 }
 
 function renderMpKeywords() {
@@ -981,7 +980,7 @@ function removeMypageGroup(index) {
 }
 
 function updateUserBtn() {
-  var btns = [document.getElementById('userBtn'), document.getElementById('favUserBtn')];
+  var btns = [document.getElementById('userBtn')];
   btns.forEach(function(btn) {
     if (!btn) return;
     if (currentUser) {
@@ -1456,10 +1455,8 @@ function switchTab(tab) {
   var isMypage = tab === 'mypage';
   document.getElementById('tabMap').classList.toggle('active', tab === 'map');
   document.getElementById('tabCal').classList.toggle('active', tab === 'list');
-  document.getElementById('tabFav').classList.toggle('active', tab === 'fav');
   document.getElementById('viewMap').classList.toggle('active', tab === 'map');
   document.getElementById('viewList').classList.toggle('active', tab === 'list');
-  document.getElementById('viewFav').classList.toggle('active', tab === 'fav');
   document.getElementById('viewMypage').classList.toggle('active', isMypage);
   if (isMypage) { renderMypageFull(); return; }
   if (tab === 'map') {
@@ -1467,7 +1464,6 @@ function switchTab(tab) {
     setTimeout(fixMap, 300);
     setTimeout(fixMap, 800);
   }
-  if (tab === 'fav') renderFavView();
   renderAll();
   if (typeof updateUrlParams === 'function') updateUrlParams();
 }
