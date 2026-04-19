@@ -27,31 +27,33 @@ module.exports = async (req, res) => {
     if (!user) return res.status(400).json({ error: 'user required' });
 
     const key = `tennis_keywords:${user}`;
+    const raw = await kvGet(key);
+    // groups: Array of Array<string>  e.g. [["삼청","주말"],["삼청","야간"]]
+    const groups = raw ? JSON.parse(raw) : [];
 
     if (req.method === 'GET') {
-      const raw = await kvGet(key);
-      const keywords = raw ? JSON.parse(raw) : [];
-      return res.status(200).json({ keywords });
+      return res.status(200).json({ groups });
     }
 
     if (req.method === 'POST') {
-      const { keyword } = req.body || {};
-      if (!keyword || !keyword.trim()) return res.status(400).json({ error: 'keyword required' });
-      const raw = await kvGet(key);
-      const keywords = raw ? JSON.parse(raw) : [];
-      const kw = keyword.trim();
-      if (!keywords.includes(kw)) keywords.push(kw);
-      await kvSet(key, JSON.stringify(keywords));
-      return res.status(200).json({ ok: true, keywords });
+      // keywords: string[] e.g. ["삼청","주말"]
+      const { keywords } = req.body || {};
+      if (!Array.isArray(keywords) || keywords.length === 0)
+        return res.status(400).json({ error: 'keywords array required' });
+      const cleaned = keywords.map(k => k.trim()).filter(Boolean);
+      if (cleaned.length === 0) return res.status(400).json({ error: 'keywords required' });
+      groups.push(cleaned);
+      await kvSet(key, JSON.stringify(groups));
+      return res.status(200).json({ ok: true, groups });
     }
 
     if (req.method === 'DELETE') {
-      const { keyword } = req.body || {};
-      if (!keyword) return res.status(400).json({ error: 'keyword required' });
-      const raw = await kvGet(key);
-      const keywords = raw ? JSON.parse(raw).filter(k => k !== keyword) : [];
-      await kvSet(key, JSON.stringify(keywords));
-      return res.status(200).json({ ok: true, keywords });
+      const { index } = req.body || {};
+      if (typeof index !== 'number' || index < 0 || index >= groups.length)
+        return res.status(400).json({ error: 'valid index required' });
+      groups.splice(index, 1);
+      await kvSet(key, JSON.stringify(groups));
+      return res.status(200).json({ ok: true, groups });
     }
 
     res.status(405).json({ error: 'Method not allowed' });

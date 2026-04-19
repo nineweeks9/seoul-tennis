@@ -417,10 +417,10 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
     </div>
     <div style="font-size:0.75rem;color:var(--muted);margin-bottom:4px;">닉네임</div>
     <div style="font-size:0.9rem;font-weight:600;color:var(--text);margin-bottom:20px;padding:8px 12px;background:var(--panel2);border-radius:8px;" id="mypageNickname"></div>
-    <div style="font-size:0.75rem;color:var(--muted);margin-bottom:8px;">알림 키워드 <span style="font-size:0.68rem;">(시설명에 포함된 키워드 접수 시 알림)</span></div>
-    <div id="mypageKeywords" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;min-height:28px;"></div>
+    <div style="font-size:0.75rem;color:var(--muted);margin-bottom:8px;">알림 키워드 조합 <span style="font-size:0.68rem;">(AND 조합, 쉼표로 구분)</span></div>
+    <div id="mypageKeywords" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;min-height:28px;"></div>
     <div style="display:flex;gap:6px;margin-bottom:20px;">
-      <input type="text" id="mypageKwInput" placeholder="키워드 입력 (예: 삼청, 주말)" maxlength="20"
+      <input type="text" id="mypageKwInput" placeholder="예: 삼청, 주말" maxlength="60"
         onkeydown="if(event.key==='Enter')addMypageKeyword()"
         style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.78rem;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--panel2);color:var(--text);">
       <button onclick="addMypageKeyword()" style="padding:8px 14px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">추가</button>
@@ -653,13 +653,13 @@ function logoutUser() {
   }
 }
 
-var mypageKeywordsCache = [];
+var mypageGroupsCache = [];
 
 function loadMypageKeywords() {
   fetch('/api/keywords?user=' + encodeURIComponent(currentUser))
     .then(function(r) { return r.json(); })
     .then(function(j) {
-      mypageKeywordsCache = j.keywords || [];
+      mypageGroupsCache = j.groups || [];
       renderMypageKeywords();
     })
     .catch(function() {});
@@ -668,42 +668,50 @@ function loadMypageKeywords() {
 function renderMypageKeywords() {
   var el = document.getElementById('mypageKeywords');
   if (!el) return;
-  if (mypageKeywordsCache.length === 0) {
+  if (mypageGroupsCache.length === 0) {
     el.innerHTML = '<span style="font-size:0.72rem;color:var(--muted);">등록된 키워드 없음</span>';
     return;
   }
-  el.innerHTML = mypageKeywordsCache.map(function(kw) {
-    return '<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:var(--accent-bg);color:var(--accent);border-radius:20px;font-size:0.72rem;font-weight:600;">'
-      + kw
-      + '<button onclick="removeMypageKeyword(\'' + kw.replace(/'/g,"\\'") + '\')" style="background:none;border:none;cursor:pointer;color:var(--accent);font-size:0.8rem;padding:0;line-height:1;">✕</button>'
-      + '</span>';
+  el.innerHTML = mypageGroupsCache.map(function(group, i) {
+    var tags = group.map(function(kw) {
+      return '<span style="padding:2px 8px;background:var(--accent-bg);color:var(--accent);border-radius:12px;font-size:0.7rem;font-weight:600;">' + kw + '</span>';
+    }).join('<span style="color:var(--muted);font-size:0.68rem;">+</span>');
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--panel2);border-radius:8px;border:1px solid var(--border);">'
+      + '<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">'
+      + '<span style="font-size:0.68rem;color:var(--muted);margin-right:4px;">' + (i+1) + '.</span>'
+      + tags
+      + '</div>'
+      + '<button onclick="removeMypageGroup(' + i + ')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:0.8rem;padding:0 2px;flex-shrink:0;">✕</button>'
+      + '</div>';
   }).join('');
 }
 
 function addMypageKeyword() {
   var input = document.getElementById('mypageKwInput');
-  var kw = (input.value || '').trim();
-  if (!kw) return;
+  var raw = (input.value || '').trim();
+  if (!raw) return;
+  var keywords = raw.split(',').map(function(k) { return k.trim(); }).filter(Boolean);
+  if (keywords.length === 0) return;
   fetch('/api/keywords', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ user: currentUser, keyword: kw })
+    body: JSON.stringify({ user: currentUser, keywords: keywords })
   }).then(function(r) { return r.json(); })
     .then(function(j) {
-      mypageKeywordsCache = j.keywords || [];
+      mypageGroupsCache = j.groups || [];
       renderMypageKeywords();
       input.value = '';
     }).catch(function() {});
 }
 
-function removeMypageKeyword(kw) {
+function removeMypageGroup(index) {
   fetch('/api/keywords', {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ user: currentUser, keyword: kw })
+    body: JSON.stringify({ user: currentUser, index: index })
   }).then(function(r) { return r.json(); })
     .then(function(j) {
-      mypageKeywordsCache = j.keywords || [];
+      mypageGroupsCache = j.groups || [];
       renderMypageKeywords();
     }).catch(function() {});
 }

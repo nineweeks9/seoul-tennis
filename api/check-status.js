@@ -142,15 +142,15 @@ module.exports = async (req, res) => {
       notified++;
     }
 
-    // 키워드 알림
+    // 키워드 알림 (그룹 AND, 그룹 간 OR)
     const kwKeys = await kvScanAll('tennis_keywords:*');
     for (const kwKey of kwKeys) {
       const username = kwKey.replace('tennis_keywords:', '');
       const kwRaw = await kvGet(kwKey);
       if (!kwRaw) continue;
-      let keywords;
-      try { keywords = JSON.parse(kwRaw); } catch { continue; }
-      if (!Array.isArray(keywords) || keywords.length === 0) continue;
+      let groups;
+      try { groups = JSON.parse(kwRaw); } catch { continue; }
+      if (!Array.isArray(groups) || groups.length === 0) continue;
 
       const chatId = await kvGet(`tennis_chatid:${username}`);
       if (!chatId) continue;
@@ -158,7 +158,9 @@ module.exports = async (req, res) => {
       const matched = newlyOpen.filter(id => {
         const r = rowMap[id];
         if (!r) return false;
-        return keywords.some(kw => r.SVCNM && r.SVCNM.includes(kw));
+        return groups.some(group =>
+          Array.isArray(group) && group.every(kw => r.SVCNM && r.SVCNM.includes(kw))
+        );
       });
       if (matched.length === 0) continue;
 
