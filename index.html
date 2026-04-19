@@ -1334,7 +1334,7 @@ function renderListView() {
   var ls = document.getElementById('listSub'); if(ls) ls.textContent = `${filteredCourts.length}개 시설`;
 
   // listGuSelect 동기화
-  document.getElementById('listGuSelect').value = document.getElementById('guSelect').value;
+  var lgs = document.getElementById('listGuSelect'); if(lgs) lgs.value = (document.getElementById('guSelect') || {}).value || '';
 
   if (filteredCourts.length === 0) {
     grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><span class="emoji">🔍</span><span class="msg">조건에 맞는 시설이 없습니다</span><span class="sub">필터를 조정해보세요</span></div>';
