@@ -142,6 +142,37 @@ module.exports = async (req, res) => {
       notified++;
     }
 
+    // 키워드 알림
+    const kwKeys = await kvScanAll('tennis_keywords:*');
+    for (const kwKey of kwKeys) {
+      const username = kwKey.replace('tennis_keywords:', '');
+      const kwRaw = await kvGet(kwKey);
+      if (!kwRaw) continue;
+      let keywords;
+      try { keywords = JSON.parse(kwRaw); } catch { continue; }
+      if (!Array.isArray(keywords) || keywords.length === 0) continue;
+
+      const chatId = await kvGet(`tennis_chatid:${username}`);
+      if (!chatId) continue;
+
+      const matched = newlyOpen.filter(id => {
+        const r = rowMap[id];
+        if (!r) return false;
+        return keywords.some(kw => r.SVCNM && r.SVCNM.includes(kw));
+      });
+      if (matched.length === 0) continue;
+
+      const lines = matched.map(id => {
+        const r = rowMap[id];
+        if (!r) return null;
+        return `🎾 <b>${escapeHtml(r.SVCNM)}</b>\n📍 ${escapeHtml(r.AREANM)} · ${escapeHtml(r.PLACENM)}\n🔗 <a href="${escapeHtml(r.SVCURL)}">예약하기</a>`;
+      }).filter(Boolean);
+
+      if (lines.length === 0) continue;
+      await sendTelegram(chatId, `🔔 <b>키워드 알림: 접수 시작!</b>\n\n${lines.join('\n\n')}`);
+      notified++;
+    }
+
     return res.status(200).json({ ok: true, newlyOpen: newlyOpen.length, notified });
   } catch (err) {
     console.error('check-status error:', err);
