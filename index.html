@@ -477,10 +477,7 @@ function getFavs() {
   return favCache;
 }
 function isFav(svcid) {
-  // place 기반: 해당 court의 place가 favCache에 있으면 true
-  var court = COURTS.find(function(c){ return c.svcid === svcid; });
-  if (!court || !court.place) return favCache.includes(svcid);
-  return favCache.includes(court.place);
+  return favCache.includes(svcid);
 }
 
 function setFavs(arr) {
@@ -506,11 +503,9 @@ function toggleFav(svcid, e) {
 }
 
 function doToggleFav(svcid) {
-  var court = COURTS.find(function(c){ return c.svcid === svcid; });
-  var key = (court && court.place) ? court.place : svcid;
   var favs = getFavs().slice();
-  if (favs.includes(key)) favs = favs.filter(function(f){return f !== key;});
-  else favs.push(key);
+  if (favs.includes(svcid)) favs = favs.filter(function(f){ return f !== svcid; });
+  else favs.push(svcid);
   setFavs(favs);
   renderAll();
 }
@@ -1468,6 +1463,7 @@ function renderFavView() {
           </div>
           <div style="margin-top:8px;display:flex;gap:6px;">
             <button class="cal-card-btn" onclick="event.stopPropagation();switchTab('map');setTimeout(function(){selectCourt(${court.id},true)},100)" style="color:var(--accent);font-size:0.68rem;">🗺️ 위치</button>
+            <button class="cal-card-btn" onclick="event.stopPropagation();doToggleFav('${court.svcid}')" style="color:var(--muted);font-size:0.68rem;">⭐ 해제</button>
             <a class="cal-card-btn primary" href="${url}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:0.68rem;">예약 바로가기 →</a>
           </div>
         </div>`;
@@ -1479,8 +1475,8 @@ function renderFavView() {
 }
 
 function removeFavPlace(place) {
-  var favs = getFavs().slice();
-  favs = favs.filter(function(f) { return f !== place; });
+  var placeIds = COURTS.filter(function(c) { return c.place === place; }).map(function(c) { return c.svcid; });
+  var favs = getFavs().filter(function(f) { return !placeIds.includes(f); });
   setFavs(favs);
   renderFavView();
   renderAll();
