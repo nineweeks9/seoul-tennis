@@ -200,7 +200,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 /* Modal overlay */
 .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);z-index:9000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.25s ease;}
 .modal-overlay.open{opacity:1;pointer-events:auto;}
-.modal{background:var(--panel);border-radius:16px;box-shadow:0 24px 64px rgba(0,0,0,0.25);width:90%;max-width:560px;max-height:85vh;overflow-y:auto;transform:translateY(20px) scale(0.97);transition:transform 0.25s ease;scrollbar-width:thin;}
+.modal{background:var(--panel);border-radius:16px;box-shadow:0 24px 64px rgba(0,0,0,0.25);width:90%;max-width:560px;max-height:92vh;overflow-y:auto;transform:translateY(20px) scale(0.97);transition:transform 0.25s ease;scrollbar-width:thin;}
 .modal-overlay.open .modal{transform:translateY(0) scale(1);}
 .modal-close{position:sticky;top:0;z-index:2;display:flex;justify-content:flex-end;padding:12px 16px 0;}
 .modal-close button{background:var(--panel2);border:1px solid var(--border);border-radius:8px;width:32px;height:32px;font-size:1rem;cursor:pointer;color:var(--muted);display:flex;align-items:center;justify-content:center;transition:all 0.15s;}
@@ -406,7 +406,12 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 
           <!-- 알림 키워드 -->
           <div style="background:var(--panel);border-radius:14px;padding:20px;box-shadow:var(--shadow);">
-            <div style="font-size:0.8rem;font-weight:700;margin-bottom:12px;">🔔 알림 키워드 <span style="font-size:0.7rem;color:var(--muted);font-weight:400;">(AND 조합, 쉼표로 구분)</span></div>
+            <div style="font-size:0.8rem;font-weight:700;margin-bottom:6px;">🔔 알림 키워드</div>
+            <div style="font-size:0.72rem;color:var(--muted);margin-bottom:12px;line-height:1.6;background:var(--panel2);border-radius:8px;padding:8px 12px;">
+              접수 상태가 <b>접수중</b>으로 바뀔 때 텔레그램으로 알림이 와요.<br>
+              쉼표로 구분한 키워드를 <b>모두 포함</b>하는 시설명에 알림이 발송돼요.<br>
+              예: <span style="color:var(--accent);">삼청, 주말</span> → "삼청"과 "주말" 둘 다 포함된 시설
+            </div>
             <div id="mpKeywordList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;"></div>
             <div style="display:flex;gap:6px;">
               <input type="text" id="mpKwInput" placeholder="예: 삼청, 주말" maxlength="60"
@@ -420,7 +425,10 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 
         <!-- 오른쪽 컬럼: 즐겨찾기 -->
         <div style="background:var(--panel);border-radius:14px;padding:20px;box-shadow:var(--shadow);">
-          <div style="font-size:0.8rem;font-weight:700;margin-bottom:12px;">⭐ 즐겨찾기 <span id="mpFavCount" style="font-size:0.7rem;color:var(--muted);font-weight:400;"></span></div>
+          <div style="font-size:0.8rem;font-weight:700;margin-bottom:6px;">⭐ 즐겨찾기 <span id="mpFavCount" style="font-size:0.7rem;color:var(--muted);font-weight:400;"></span></div>
+        <div style="font-size:0.72rem;color:var(--muted);margin-bottom:12px;line-height:1.6;background:var(--panel2);border-radius:8px;padding:8px 12px;">
+          즐겨찾기한 시설이 <b>접수중</b>으로 바뀌면 텔레그램으로 알림이 와요.
+        </div>
           <div id="mpFavList"></div>
         </div>
 
@@ -689,18 +697,21 @@ async function saveHomeAddress() {
 
 // 카카오맵 길찾기 링크 생성
 function generateRouteLink(court) {
-  var courtName = encodeURIComponent(court.place || court.name);
+  var name = court.place || court.name;
   var courtLat = court.lat;
   var courtLng = court.lng;
-  if (!courtLat || !courtLng) return null;
 
-  if (homeCoords && homeCoords.lat && homeCoords.lng) {
-    return 'https://map.kakao.com/?sName=' + encodeURIComponent('집') +
-      '&sx=' + homeCoords.lng + '&sy=' + homeCoords.lat +
-      '&eName=' + courtName + '&ex=' + courtLng + '&ey=' + courtLat +
-      '&pathType=0';
+  if (courtLat && courtLng) {
+    if (homeCoords && homeCoords.lat && homeCoords.lng) {
+      return 'https://map.kakao.com/?sName=' + encodeURIComponent('집') +
+        '&sx=' + homeCoords.lng + '&sy=' + homeCoords.lat +
+        '&eName=' + encodeURIComponent(name) + '&ex=' + courtLng + '&ey=' + courtLat +
+        '&pathType=0';
+    }
+    return 'https://map.kakao.com/link/to/' + encodeURIComponent(name) + ',' + courtLat + ',' + courtLng;
   }
-  return 'https://map.kakao.com/link/to/' + courtName + ',' + courtLat + ',' + courtLng;
+  // 좌표 없으면 장소명 검색 링크
+  return 'https://map.kakao.com/link/search/' + encodeURIComponent(name);
 }
 
 // 서버에서 즐겨찾기 불러오기
@@ -766,41 +777,64 @@ function renderMypageFull() {
     .catch(function(){});
 }
 
+function mpStatusColor(s) {
+  if (s === '접수중') return '#16a34a';
+  if (s === '안내중') return '#0ea5e9';
+  if (s === '예약일시중지') return '#d97706';
+  return '#dc2626';
+}
+
 function renderMpFavs() {
   var list = document.getElementById('mpFavList');
   var count = document.getElementById('mpFavCount');
   var favIds = getFavs();
-  count.textContent = favIds.length + '개';
   if (favIds.length === 0) {
+    count.textContent = '0개';
     list.innerHTML = '<div style="font-size:0.78rem;color:var(--muted);">즐겨찾기한 테니스장이 없습니다.</div>';
     return;
   }
   var courts = COURTS.filter(function(c){ return favIds.includes(c.svcid); });
-  // 장소(place) 단위로 그룹핑
+  count.textContent = courts.length + '개 프로그램';
+
+  // 장소별 그룹 헤더 + 개별 프로그램 목록
   var groups = {};
   var groupOrder = [];
   courts.forEach(function(c) {
     var key = c.place || c.name;
-    if (!groups[key]) { groups[key] = { place: key, gu: c.gu, svcids: [], statuses: [] }; groupOrder.push(key); }
-    groups[key].svcids.push(c.svcid);
-    groups[key].statuses.push(c.status);
+    if (!groups[key]) { groups[key] = { gu: c.gu, courts: [] }; groupOrder.push(key); }
+    groups[key].courts.push(c);
   });
+
   var html = '';
   groupOrder.forEach(function(key) {
     var g = groups[key];
-    var bestStatus = g.statuses.includes('접수중') ? '접수중' : g.statuses.includes('안내중') ? '안내중' : g.statuses[0];
-    var dotCol = bestStatus === '접수중' ? '#16a34a' : bestStatus === '안내중' ? '#0ea5e9' : '#dc2626';
-    var svcidsJson = JSON.stringify(g.svcids).replace(/"/g, '&quot;');
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);gap:8px;">';
-    html += '<div style="flex:1;min-width:0;">';
-    html += '<div style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + key + '</div>';
-    html += '<div style="font-size:0.68rem;color:var(--muted);margin-top:2px;">📍 ' + g.gu + ' · ' + g.svcids.length + '개 프로그램</div>';
+    // 장소 헤더 (전체 해제 버튼)
+    var allSvcids = JSON.stringify(g.courts.map(function(c){ return c.svcid; })).replace(/"/g, '&quot;');
+    html += '<div style="padding:8px 0 4px;border-bottom:2px solid var(--border2);margin-top:4px;display:flex;align-items:center;justify-content:space-between;">';
+    html += '<div style="font-size:0.82rem;font-weight:700;">' + key + ' <span style="font-size:0.68rem;color:var(--muted);font-weight:400;">📍 ' + g.gu + '</span></div>';
+    html += '<button onclick="removeFavGroup(' + allSvcids + ')" style="padding:2px 8px;border-radius:5px;border:1px solid var(--border);background:var(--panel2);color:var(--muted);font-size:0.65rem;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">전체해제</button>';
     html += '</div>';
-    html += '<span style="font-size:0.7rem;color:' + dotCol + ';font-weight:700;flex-shrink:0;">' + bestStatus + '</span>';
-    html += '<button onclick="removeFavGroup(' + svcidsJson + ')" style="padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--panel2);color:var(--muted);font-size:0.7rem;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;flex-shrink:0;">해제</button>';
-    html += '</div>';
+    // 개별 프로그램
+    g.courts.forEach(function(c) {
+      var col = mpStatusColor(c.status);
+      var shortName = c.name.replace(key, '').replace(/^[-–—\s()（）]+|[-–—\s()（）]+$/g, '').trim() || c.name;
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0 7px 10px;border-bottom:1px solid var(--border);gap:8px;">';
+      html += '<div style="flex:1;min-width:0;">';
+      html += '<div style="font-size:0.78rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + shortName + '</div>';
+      html += '</div>';
+      html += '<span style="font-size:0.7rem;color:' + col + ';font-weight:700;flex-shrink:0;">' + c.status + '</span>';
+      html += '<button onclick="removeFavOne(\'' + c.svcid + '\')" style="padding:3px 8px;border-radius:5px;border:1px solid var(--border);background:var(--panel2);color:var(--muted);font-size:0.65rem;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;flex-shrink:0;">해제</button>';
+      html += '</div>';
+    });
   });
   list.innerHTML = html;
+}
+
+function removeFavOne(svcid) {
+  var favs = getFavs().filter(function(id){ return id !== svcid; });
+  setFavs(favs);
+  renderMpFavs();
+  renderAll();
 }
 
 function removeFavGroup(svcids) {
