@@ -615,15 +615,17 @@ function userBtnClick() {
 }
 
 function updateUserBtn() {
-  var btn = document.getElementById('userBtn');
-  if (!btn) return;
-  if (currentUser) {
-    btn.innerHTML = '👤 ' + currentUser;
-    btn.title = currentUser + ' (클릭하면 로그아웃)';
-  } else {
-    btn.innerHTML = '👤';
-    btn.title = '닉네임 설정';
-  }
+  var btns = [document.getElementById('userBtn'), document.getElementById('favUserBtn')];
+  btns.forEach(function(btn) {
+    if (!btn) return;
+    if (currentUser) {
+      btn.innerHTML = '👤 ' + currentUser;
+      btn.title = currentUser + ' (클릭하면 로그아웃)';
+    } else {
+      btn.innerHTML = '👤 로그인';
+      btn.title = '닉네임 설정';
+    }
+  });
 }
 // 초기 UI
 setTimeout(updateUserBtn, 0);
