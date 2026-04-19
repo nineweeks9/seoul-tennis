@@ -425,11 +425,14 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 
         <!-- 오른쪽 컬럼: 즐겨찾기 -->
         <div style="background:var(--panel);border-radius:14px;padding:20px;box-shadow:var(--shadow);">
-          <div style="font-size:0.8rem;font-weight:700;margin-bottom:6px;">⭐ 즐겨찾기 <span id="mpFavCount" style="font-size:0.7rem;color:var(--muted);font-weight:400;"></span></div>
-        <div style="font-size:0.72rem;color:var(--muted);margin-bottom:12px;line-height:1.6;background:var(--panel2);border-radius:8px;padding:8px 12px;">
-          즐겨찾기한 <b>각 예약 프로그램</b>이 <b>접수중</b>으로 바뀌면 텔레그램으로 알림이 와요.<br>
-          프로그램별로 개별 추적하므로 평일/주말/야간 슬롯이 각각 알림돼요.
-        </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <div style="font-size:0.8rem;font-weight:700;">⭐ 즐겨찾기 <span id="mpFavCount" style="font-size:0.7rem;color:var(--muted);font-weight:400;"></span></div>
+            <button onclick="removeAllFavs()" style="padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--panel2);color:var(--full);font-size:0.7rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;font-weight:600;">전체 해제</button>
+          </div>
+          <div style="font-size:0.72rem;color:var(--muted);margin-bottom:12px;line-height:1.6;background:var(--panel2);border-radius:8px;padding:8px 12px;">
+            즐겨찾기한 <b>각 예약 프로그램</b>이 <b>접수중</b>으로 바뀌면 텔레그램으로 알림이 와요.<br>
+            프로그램별로 개별 추적하므로 평일/주말/야간 슬롯이 각각 알림돼요.
+          </div>
           <div id="mpFavList"></div>
         </div>
 
@@ -819,16 +822,25 @@ function renderMpFavs() {
     g.courts.forEach(function(c) {
       var col = mpStatusColor(c.status);
       var shortName = c.name.replace(key, '').replace(/^[-–—\s()（）]+|[-–—\s()（）]+$/g, '').trim() || c.name;
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0 7px 10px;border-bottom:1px solid var(--border);gap:8px;">';
+      html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;padding:7px 0 7px 10px;border-bottom:1px solid var(--border);gap:8px;">';
       html += '<div style="flex:1;min-width:0;">';
-      html += '<div style="font-size:0.78rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + shortName + '</div>';
+      html += '<div style="font-size:0.78rem;font-weight:500;word-break:keep-all;">' + shortName + '</div>';
       html += '</div>';
-      html += '<span style="font-size:0.7rem;color:' + col + ';font-weight:700;flex-shrink:0;">' + c.status + '</span>';
-      html += '<button onclick="removeFavOne(\'' + c.svcid + '\')" style="padding:3px 8px;border-radius:5px;border:1px solid var(--border);background:var(--panel2);color:var(--muted);font-size:0.65rem;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;flex-shrink:0;">해제</button>';
+      html += '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">';
+      html += '<span style="font-size:0.7rem;color:' + col + ';font-weight:700;">' + c.status + '</span>';
+      html += '<span onclick="removeFavOne(\'' + c.svcid + '\')" style="cursor:pointer;font-size:1rem;opacity:0.85;" title="즐겨찾기 해제">⭐</span>';
+      html += '</div>';
       html += '</div>';
     });
   });
   list.innerHTML = html;
+}
+
+function removeAllFavs() {
+  if (!confirm('즐겨찾기를 전체 해제할까요?')) return;
+  setFavs([]);
+  renderMpFavs();
+  renderAll();
 }
 
 function removeFavOne(svcid) {
@@ -1917,6 +1929,7 @@ function openModal(courtId) {
     `https://yeyak.seoul.go.kr/web/reservation/selectReservView.do?rsv_svc_id=${court.svcid}` :
     'https://yeyak.seoul.go.kr');
   const faved = isFav(court.svcid);
+  const routeLink = generateRouteLink(court);
 
   // 상세내용 정리 (HTML 태그 제거 후 줄바꿈 처리)
   let desc = (court.dtlCont || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
@@ -1950,7 +1963,7 @@ function openModal(courtId) {
 
     <div class="modal-actions">
       <button class="secondary" onclick="toggleFav('${court.svcid}');openModal(${court.id})">${faved ? '⭐ 즐겨찾기 해제' : '☆ 즐겨찾기 추가'}</button>
-      ${(() => { var link = generateRouteLink(court); return link ? `<a class="secondary" href="${link}" target="_blank" rel="noopener" style="text-decoration:none;display:flex;align-items:center;justify-content:center;">🗺️ 길찾기</a>` : ''; })()}
+      ${routeLink ? `<a class="secondary" href="${routeLink}" target="_blank" rel="noopener" style="text-decoration:none;display:flex;align-items:center;justify-content:center;">🗺️ 길찾기</a>` : ''}
       <a class="primary" href="${url}" target="_blank" rel="noopener">예약 바로가기 →</a>
     </div>
   </div>`;
