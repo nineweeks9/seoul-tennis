@@ -57,6 +57,6 @@ module.exports = async (req, res) => {
     res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
     console.error('chatid error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, cause: err.cause?.message, kv: !!process.env.KV_REST_API_URL });
   }
 };
