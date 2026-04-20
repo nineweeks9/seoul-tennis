@@ -1,0 +1,139 @@
+<h2>마이페이지 — 모바일 레이아웃</h2>
+<p class="subtitle">모바일(375px 기준)에서 섹션을 어떤 순서로 배치할까요?</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:16px;background:#f8fafc;">
+      <div style="font-size:0.7rem;color:#64748b;margin-bottom:10px;font-weight:600;letter-spacing:0.05em;">OPTION A — 현재 순서 유지 (1컬럼화)</div>
+      <!-- Phone mockup -->
+      <div style="max-width:200px;margin:0 auto;border:2px solid #cbd5e1;border-radius:16px;overflow:hidden;background:#fff;font-size:0.65rem;font-family:sans-serif;">
+        <!-- header -->
+        <div style="background:#1e40af;color:#fff;padding:8px 12px;display:flex;align-items:center;gap:6px;">
+          <span style="font-size:0.8rem;">←</span>
+          <span style="font-weight:700;">👤 마이페이지</span>
+          <span style="margin-left:auto;background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:6px;font-size:0.6rem;">로그아웃</span>
+        </div>
+        <!-- 집주소 -->
+        <div style="margin:8px;background:#f1f5f9;border-radius:8px;padding:10px;">
+          <div style="font-weight:700;margin-bottom:6px;">🏠 집 주소</div>
+          <div style="display:flex;gap:4px;">
+            <div style="flex:1;background:#fff;border:1px solid #e2e8f0;border-radius:5px;padding:5px 8px;color:#94a3b8;font-size:0.6rem;">예: 서울시 종로구...</div>
+            <div style="background:#2563eb;color:#fff;border-radius:5px;padding:5px 8px;font-size:0.6rem;white-space:nowrap;">저장</div>
+          </div>
+        </div>
+        <!-- 알림키워드 -->
+        <div style="margin:8px;background:#f1f5f9;border-radius:8px;padding:10px;">
+          <div style="font-weight:700;margin-bottom:6px;">🔔 알림 키워드</div>
+          <div style="background:#e2e8f0;border-radius:4px;padding:6px;font-size:0.58rem;color:#64748b;margin-bottom:6px;line-height:1.5;">접수중으로 바뀔 때 텔레그램 알림</div>
+          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:4px;padding:4px 8px;margin-bottom:4px;display:flex;justify-content:space-between;"><span>삼청, 주말</span><span style="color:#94a3b8;">✕</span></div>
+          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:4px;padding:4px 8px;display:flex;justify-content:space-between;"><span>한남, 주말</span><span style="color:#94a3b8;">✕</span></div>
+          <div style="display:flex;gap:4px;margin-top:6px;">
+            <div style="flex:1;background:#fff;border:1px solid #e2e8f0;border-radius:5px;padding:5px 8px;color:#94a3b8;font-size:0.6rem;">예: 삼청, 주말</div>
+            <div style="background:#2563eb;color:#fff;border-radius:5px;padding:5px 8px;font-size:0.6rem;">추가</div>
+          </div>
+        </div>
+        <!-- 즐겨찾기 -->
+        <div style="margin:8px;background:#f1f5f9;border-radius:8px;padding:10px;">
+          <div style="font-weight:700;margin-bottom:6px;">⭐ 즐겨찾기 <span style="color:#94a3b8;font-weight:400;">4개</span></div>
+          <div style="background:#e2e8f0;border-radius:4px;padding:6px;font-size:0.58rem;color:#64748b;margin-bottom:6px;line-height:1.5;">접수중으로 바뀌면 텔레그램 알림</div>
+          <div style="font-size:0.6rem;color:#64748b;text-align:center;padding:8px;">목록 아래로 스크롤...</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — 집주소 → 알림키워드 → 즐겨찾기</h3>
+      <p>현재 순서를 1컬럼으로 정리. 즐겨찾기는 스크롤해서 봐야 함.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:16px;background:#f8fafc;">
+      <div style="font-size:0.7rem;color:#64748b;margin-bottom:10px;font-weight:600;letter-spacing:0.05em;">OPTION B — 즐겨찾기 상단 배치</div>
+      <div style="max-width:200px;margin:0 auto;border:2px solid #cbd5e1;border-radius:16px;overflow:hidden;background:#fff;font-size:0.65rem;font-family:sans-serif;">
+        <!-- header -->
+        <div style="background:#1e40af;color:#fff;padding:8px 12px;display:flex;align-items:center;gap:6px;">
+          <span style="font-size:0.8rem;">←</span>
+          <span style="font-weight:700;">👤 마이페이지</span>
+          <span style="margin-left:auto;background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:6px;font-size:0.6rem;">로그아웃</span>
+        </div>
+        <!-- 즐겨찾기 -->
+        <div style="margin:8px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px;">
+          <div style="font-weight:700;margin-bottom:6px;color:#92400e;">⭐ 즐겨찾기 <span style="color:#94a3b8;font-weight:400;">4개</span></div>
+          <div style="background:#fef3c7;border-radius:4px;padding:4px 8px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;"><span>삼청 주말 (접수중)</span><span style="background:#16a34a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.55rem;">접수중</span></div>
+          <div style="background:#fef3c7;border-radius:4px;padding:4px 8px;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;"><span>한남 주말</span><span style="background:#e5e7eb;color:#6b7280;border-radius:4px;padding:1px 5px;font-size:0.55rem;">마감</span></div>
+          <div style="font-size:0.6rem;color:#64748b;text-align:center;padding:4px;">+ 2개 더...</div>
+        </div>
+        <!-- 집주소 -->
+        <div style="margin:8px;background:#f1f5f9;border-radius:8px;padding:10px;">
+          <div style="font-weight:700;margin-bottom:6px;">🏠 집 주소</div>
+          <div style="display:flex;gap:4px;">
+            <div style="flex:1;background:#fff;border:1px solid #e2e8f0;border-radius:5px;padding:5px 8px;color:#64748b;font-size:0.6rem;">공덕sk리더스뷰</div>
+            <div style="background:#2563eb;color:#fff;border-radius:5px;padding:5px 8px;font-size:0.6rem;white-space:nowrap;">저장</div>
+          </div>
+        </div>
+        <!-- 알림키워드 -->
+        <div style="margin:8px;background:#f1f5f9;border-radius:8px;padding:10px;">
+          <div style="font-weight:700;margin-bottom:6px;">🔔 알림 키워드</div>
+          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:4px;padding:4px 8px;margin-bottom:4px;display:flex;justify-content:space-between;"><span>삼청, 주말</span><span style="color:#94a3b8;">✕</span></div>
+          <div style="display:flex;gap:4px;margin-top:6px;">
+            <div style="flex:1;background:#fff;border:1px solid #e2e8f0;border-radius:5px;padding:5px 8px;color:#94a3b8;font-size:0.6rem;">예: 삼청, 주말</div>
+            <div style="background:#2563eb;color:#fff;border-radius:5px;padding:5px 8px;font-size:0.6rem;">추가</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — 즐겨찾기 → 집주소 → 알림키워드</h3>
+      <p>가장 자주 보는 즐겨찾기를 상단에. 설정 항목은 아래로.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:16px;background:#f8fafc;">
+      <div style="font-size:0.7rem;color:#64748b;margin-bottom:10px;font-weight:600;letter-spacing:0.05em;">OPTION C — 탭으로 분리</div>
+      <div style="max-width:200px;margin:0 auto;border:2px solid #cbd5e1;border-radius:16px;overflow:hidden;background:#fff;font-size:0.65rem;font-family:sans-serif;">
+        <!-- header -->
+        <div style="background:#1e40af;color:#fff;padding:8px 12px;display:flex;align-items:center;gap:6px;">
+          <span style="font-size:0.8rem;">←</span>
+          <span style="font-weight:700;">👤 마이페이지</span>
+          <span style="margin-left:auto;background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:6px;font-size:0.6rem;">로그아웃</span>
+        </div>
+        <!-- 탭 -->
+        <div style="display:flex;border-bottom:2px solid #e2e8f0;background:#f8fafc;">
+          <div style="flex:1;text-align:center;padding:8px 4px;font-weight:700;border-bottom:2px solid #2563eb;color:#2563eb;margin-bottom:-2px;">⭐ 즐겨찾기</div>
+          <div style="flex:1;text-align:center;padding:8px 4px;color:#94a3b8;">⚙️ 설정</div>
+        </div>
+        <!-- 즐겨찾기 탭 내용 -->
+        <div style="padding:8px;">
+          <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:8px;margin-bottom:4px;">
+            <div style="font-weight:600;margin-bottom:2px;">삼청 공원 테니스장</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="color:#64748b;font-size:0.58rem;">주말 주간 / 접수중</span>
+              <span style="background:#16a34a;color:#fff;border-radius:3px;padding:1px 5px;font-size:0.55rem;">접수중</span>
+            </div>
+          </div>
+          <div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:8px;margin-bottom:4px;">
+            <div style="font-weight:600;margin-bottom:2px;">한남 테니스장</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="color:#64748b;font-size:0.58rem;">주말 주간 / 마감</span>
+              <span style="background:#e5e7eb;color:#6b7280;border-radius:3px;padding:1px 5px;font-size:0.55rem;">마감</span>
+            </div>
+          </div>
+          <div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:8px;">
+            <div style="font-weight:600;margin-bottom:2px;">남부 테니스장</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="color:#64748b;font-size:0.58rem;">주말 야간 / 접수종료</span>
+              <span style="background:#fee2e2;color:#dc2626;border-radius:3px;padding:1px 5px;font-size:0.55rem;">종료</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — 즐겨찾기 / 설정 탭 분리</h3>
+      <p>즐겨찾기와 설정을 탭으로 나눔. 각각 풀 스크린으로 쾌적하게.</p>
+    </div>
+  </div>
+
+</div>
