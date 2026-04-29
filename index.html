@@ -327,6 +327,7 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
     <div class="stats-row" id="statsRow"></div>
     <div style="flex:1"></div>
     <button class="refresh-btn" id="userBtn" onclick="userBtnClick()" title="닉네임 설정">👤</button>
+    <button class="refresh-btn" id="homeBtn" onclick="openHomeModal()" title="집 주소 설정 (길찾기 출발지)">🏠</button>
     <button class="refresh-btn" id="refreshBtn" onclick="loadSeoulAPI()">
       <span class="refresh-icon">🔄</span> 새로고침
     </button>
@@ -433,6 +434,22 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
     <div style="display:flex;gap:8px;">
       <button onclick="closeNicknameModal()" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--panel2);color:var(--text2);font-size:0.78rem;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
       <button onclick="submitNickname()" style="flex:1;padding:10px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- Home Address Modal -->
+<div class="modal-overlay" id="homeOverlay" style="display:none;" onclick="closeHomeModal()">
+  <div style="background:var(--panel);border-radius:16px;padding:28px 24px;max-width:340px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.2);" onclick="event.stopPropagation()">
+    <div style="font-size:1.5rem;margin-bottom:8px;text-align:center;">🏠</div>
+    <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:4px;text-align:center;">집 주소 설정</h3>
+    <p style="font-size:0.73rem;color:var(--muted);margin-bottom:16px;line-height:1.5;text-align:center;">길찾기 출발지로 사용됩니다</p>
+    <input type="text" id="homeAddrInput" placeholder="예: 서울시 마포구 합정동" maxlength="100"
+      onkeydown="if(event.key==='Enter')saveHomeAddr()"
+      style="width:100%;padding:10px 14px;border:2px solid var(--border);border-radius:10px;font-size:0.85rem;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--panel2);color:var(--text);margin-bottom:12px;transition:border-color 0.15s;box-sizing:border-box;">
+    <div style="display:flex;gap:8px;">
+      <button onclick="closeHomeModal()" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--panel2);color:var(--text2);font-size:0.78rem;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
+      <button onclick="saveHomeAddr()" style="flex:1;padding:10px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">저장</button>
     </div>
   </div>
 </div>
@@ -629,6 +646,52 @@ async function loadFavsFromServer(username) {
 // 초기화: 로컬 캐시 로드 + 서버 동기화
 try { favCache = JSON.parse(localStorage.getItem('tennis_favs') || '[]'); } catch(e) { favCache = []; }
 if (currentUser) { loadFavsFromServer(currentUser); }
+
+// ═══════════════════════════════════════
+// 집 주소 & 길찾기
+// ═══════════════════════════════════════
+var homeAddress = localStorage.getItem('tennis_home_addr') || '';
+
+function openHomeModal() {
+  var overlay = document.getElementById('homeOverlay');
+  overlay.style.removeProperty('display');
+  overlay.classList.add('open');
+  var input = document.getElementById('homeAddrInput');
+  input.value = homeAddress;
+  setTimeout(function(){ input.focus(); }, 100);
+}
+
+function closeHomeModal() {
+  var overlay = document.getElementById('homeOverlay');
+  overlay.classList.remove('open');
+  overlay.style.display = 'none';
+}
+
+function saveHomeAddr() {
+  var input = document.getElementById('homeAddrInput');
+  var addr = (input.value || '').trim();
+  homeAddress = addr;
+  if (addr) {
+    localStorage.setItem('tennis_home_addr', addr);
+    showToast('🏠 집 주소 저장됨');
+  } else {
+    localStorage.removeItem('tennis_home_addr');
+    showToast('🏠 집 주소 삭제됨');
+  }
+  closeHomeModal();
+}
+
+function generateRouteLink(court) {
+  var destLat = court.lat;
+  var destLng = court.lng;
+  if (!destLat || !destLng) {
+    return 'https://www.google.com/maps/search/' + encodeURIComponent(court.place || court.name);
+  }
+  if (homeAddress) {
+    return 'https://www.google.com/maps/dir/' + encodeURIComponent(homeAddress) + '/' + destLat + ',' + destLng;
+  }
+  return 'https://www.google.com/maps/dir/?api=1&destination=' + destLat + ',' + destLng;
+}
 
 function userBtnClick() {
   if (currentUser) {
@@ -1336,8 +1399,9 @@ function selectCourt(id, flyTo) {
       ${court.useTgtInfo ? `<tr><td style="padding:4px 0;vertical-align:top;">👤</td><td style="padding:4px 0;">${court.useTgtInfo.slice(0, 50)}${court.useTgtInfo.length > 50 ? '…' : ''}</td></tr>` : ''}
       ${court.telNo ? `<tr><td style="padding:4px 0;vertical-align:top;">📞</td><td style="padding:4px 0;"><a href="tel:${court.telNo}" style="color:var(--accent);text-decoration:none">${court.telNo}</a></td></tr>` : ''}
     </table>
-    <div style="display:flex;gap:8px;margin-top:12px;">
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
       <button class="goto-btn" onclick="openModal(${court.id})" style="background:var(--panel);color:var(--text2);box-shadow:none;border:1px solid var(--border);">📋 상세</button>
+      ${court.lat ? `<a class="goto-btn" href="${generateRouteLink(court)}" target="_blank" rel="noopener" style="background:var(--panel);color:var(--accent);box-shadow:none;border:1px solid var(--border);">🗺️ 길찾기</a>` : ''}
       <a class="goto-btn" href="${url}" target="_blank" rel="noopener" style="flex:1;background:var(--accent);color:#fff;">예약 바로가기 →</a>
     </div>`;
   panel.classList.add('open');
@@ -1575,6 +1639,7 @@ function openModal(courtId) {
 
     <div class="modal-actions">
       <button class="secondary" onclick="toggleFav('${court.svcid}');openModal(${court.id})">${faved ? '⭐ 즐겨찾기 해제' : '☆ 즐겨찾기 추가'}</button>
+      ${court.lat ? `<a class="secondary" href="${generateRouteLink(court)}" target="_blank" rel="noopener" style="text-decoration:none;display:flex;align-items:center;justify-content:center;">🗺️ 길찾기</a>` : ''}
       <a class="primary" href="${url}" target="_blank" rel="noopener">예약 바로가기 →</a>
     </div>
   </div>`;
