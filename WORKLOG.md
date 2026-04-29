@@ -125,15 +125,71 @@ api/
   - bizId, bizItemId는 placeId와 별도 관리, 공개 API 미노출
 - **Ticket 탭 데이터**: JS 동적 로딩 (SSR 없음) — Puppeteer 필수
 
-#### 다음에 시도할 방법
-1. **Puppeteer 네트워크 인터셉터**: 브라우저로 ticket 탭 로드하면서 실제 API 요청 URL 캡처
-   - `page.on('response', ...)` 방식으로 모든 네트워크 응답 모니터링
-2. **Chrome DevTools 수동 분석**: 직접 브라우저에서 Network 탭 확인 요청
-3. **대안 접근**: bizId 없이도 `map.naver.com/p/api/place/summary` 기반으로
-   - 네이버 예약 있는 구장 목록 + 예약 링크만 제공하는 방식
+### API 역공학 완료 (2026-04-30)
 
-### 예상 작업
-1. Puppeteer 서버사이드로 ticket 탭 네트워크 요청 캡처
-2. bizId/bizItemId 획득 후 슬롯 데이터 구조 파악
-3. Vercel serverless에서 스크래핑 또는 API 호출 구현
-4. 서울시 데이터 + 네이버 데이터 통합 렌더링
+#### 최종 발견한 엔드포인트
+
+**bizId/itemId 획득** — `pcmap.place.naver.com/place/{placeId}/ticket` HTML에서 링크 추출:
+```
+https://m.booking.naver.com/booking/10/bizes/210031/items/7457885?...
+                                    ^^           ^^^^^^       ^^^^^^^
+                                    type         bizId        itemId
+```
+
+**슬롯 가용성 API** — `https://m.booking.naver.com/graphql?opName=hourlySchedule`
+```graphql
+query hourlySchedule($scheduleParams: ScheduleParams) {
+  schedule(input: $scheduleParams) {
+    bizItemSchedule {
+      hourly {
+        unitStartTime   # "2026-04-30 12:00:00"
+        unitBookingCount
+        unitStock
+        duration        # 60 (분)
+        prices { price isDefault }
+      }
+    }
+  }
+}
+```
+Variables:
+```json
+{
+  "scheduleParams": {
+    "businessId": "210031",
+    "bizItemId": "7457885",
+    "businessTypeId": 10,
+    "startDateTime": "2026-04-30T00:00:00",
+    "endDateTime": "2026-04-30T23:59:59",
+    "fixedTime": true
+  }
+}
+```
+
+**가용성 판단**:
+- `prices[0].price > 0` → 판매 슬롯 (운영시간)
+- `unitBookingCount < unitStock` → 예약 가능
+- `unitBookingCount >= unitStock` → 마감
+
+#### 매헌시민의숲테니스장 (placeId: 18754970) 코트 목록
+| 코트명 | bizId | itemId |
+|--------|-------|--------|
+| A코트(실내) | 210031 | 7457885 |
+| B코트(실내) | 210031 | 7457925 |
+| C코트(실내) | 210031 | 7458001 |
+| 1번코트(실외,인조잔디) | 210031 | 7458006 |
+| 2번코트(실외,인조잔디) | 210031 | 7458009 |
+| 3번코트(실외,인조잔디) | 210031 | 7458015 |
+| 4번코트(실외,인조잔디) | 210031 | 7458018 |
+| 5번코트(실외,인조잔디) | 210031 | 7458024 |
+| 6번코트(실외,인조잔디) | 210031 | 7458029 |
+| 7번코트(실외,인조잔디) | 210031 | 7458033 |
+
+### 구현 완료: `api/naver.js`
+
+- `GET /api/naver` → 지원 장소 목록
+- `GET /api/naver?placeId=18754970&date=2026-05-01` → 해당 날짜 전 코트 슬롯 현황
+
+### 다음 작업
+1. `index.html`에 네이버 예약 구장 통합 렌더링
+2. 추가 테니스장 bizId/itemId 조사 후 NAVER_PLACES에 추가
