@@ -321,13 +321,11 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
     <div class="tab-switcher">
       <button class="tab-btn active" id="tabMap" onclick="switchTab('map')">🗺️ 지도</button>
       <button class="tab-btn" id="tabCal" onclick="switchTab('list')">📋 목록</button>
-      <button class="tab-btn" id="tabFav" onclick="switchTab('fav')">⭐ 즐겨찾기</button>
     </div>
     <div class="v-line"></div>
     <div class="stats-row" id="statsRow"></div>
     <div style="flex:1"></div>
     <button class="refresh-btn" id="userBtn" onclick="userBtnClick()" title="닉네임 설정">👤</button>
-    <button class="refresh-btn" id="homeBtn" onclick="openHomeModal()" title="집 주소 설정 (길찾기 출발지)">🏠</button>
     <button class="refresh-btn" id="refreshBtn" onclick="loadSeoulAPI()">
       <span class="refresh-icon">🔄</span> 새로고침
     </button>
@@ -409,6 +407,61 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
     </div>
   </div>
 
+  <!-- ④ 마이페이지뷰 -->
+  <div class="view" id="viewMypage">
+    <div style="flex:1;overflow-y:auto;background:var(--bg);">
+      <div style="padding:16px 20px 12px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);background:var(--panel);">
+        <button onclick="switchTab(prevTab||'map')" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--muted);padding:4px 8px;">←</button>
+        <h2 style="font-size:0.95rem;font-weight:800;">👤 마이페이지</h2>
+        <span style="font-size:0.82rem;color:var(--accent);font-weight:600;" id="mpNickname"></span>
+        <div style="flex:1"></div>
+        <button onclick="logoutUser()" style="padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--muted);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">로그아웃</button>
+      </div>
+      <div class="mypage-grid">
+        <!-- 왼쪽 컬럼 -->
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <!-- 집 주소 -->
+          <div style="background:var(--panel);border-radius:14px;padding:20px;box-shadow:var(--shadow);">
+            <div style="font-size:0.8rem;font-weight:700;margin-bottom:12px;">🏠 집 주소 <span style="font-size:0.7rem;color:var(--muted);font-weight:400;">(길찾기 출발지)</span></div>
+            <div style="display:flex;gap:6px;margin-bottom:6px;">
+              <input type="text" id="mpHomeInput" placeholder="예: 서울시 마포구 합정동" maxlength="100"
+                onkeydown="if(event.key==='Enter')saveMpHomeAddr()"
+                style="flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.82rem;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--panel2);color:var(--text);">
+              <button onclick="saveMpHomeAddr()" style="padding:9px 16px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">저장</button>
+            </div>
+            <div id="mpHomeStatus" style="font-size:0.7rem;min-height:16px;color:var(--muted);"></div>
+          </div>
+          <!-- 알림 키워드 -->
+          <div style="background:var(--panel);border-radius:14px;padding:20px;box-shadow:var(--shadow);">
+            <div style="font-size:0.8rem;font-weight:700;margin-bottom:6px;">🔔 알림 키워드</div>
+            <div style="font-size:0.72rem;color:var(--muted);margin-bottom:12px;line-height:1.6;background:var(--panel2);border-radius:8px;padding:8px 12px;">
+              접수 상태가 <b>접수중</b>으로 바뀔 때 텔레그램으로 알림이 와요.<br>
+              쉼표로 구분한 키워드를 <b>모두 포함</b>하는 시설명에 알림이 발송돼요.
+            </div>
+            <div id="mpKeywordList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;"></div>
+            <div style="display:flex;gap:6px;">
+              <input type="text" id="mpKwInput" placeholder="예: 삼청, 주말" maxlength="60"
+                onkeydown="if(event.key==='Enter')addMpKeyword()"
+                style="flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.82rem;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--panel2);color:var(--text);">
+              <button onclick="addMpKeyword()" style="padding:9px 16px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">추가</button>
+            </div>
+          </div>
+        </div>
+        <!-- 오른쪽 컬럼: 즐겨찾기 -->
+        <div style="background:var(--panel);border-radius:14px;padding:20px;box-shadow:var(--shadow);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <div style="font-size:0.8rem;font-weight:700;">⭐ 즐겨찾기 <span id="mpFavCount" style="font-size:0.7rem;color:var(--muted);font-weight:400;"></span></div>
+            <button onclick="removeAllFavs()" style="padding:3px 10px;border-radius:6px;border:1px solid var(--border);background:var(--panel2);color:var(--full);font-size:0.7rem;cursor:pointer;font-family:'Noto Sans KR',sans-serif;font-weight:600;">전체 해제</button>
+          </div>
+          <div style="font-size:0.72rem;color:var(--muted);margin-bottom:12px;line-height:1.6;background:var(--panel2);border-radius:8px;padding:8px 12px;">
+            즐겨찾기한 시설이 <b>접수중</b>으로 바뀌면 텔레그램 알림이 와요.
+          </div>
+          <div id="mpFavList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- Tooltip -->
@@ -434,22 +487,6 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
     <div style="display:flex;gap:8px;">
       <button onclick="closeNicknameModal()" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--panel2);color:var(--text2);font-size:0.78rem;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
       <button onclick="submitNickname()" style="flex:1;padding:10px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">확인</button>
-    </div>
-  </div>
-</div>
-
-<!-- Home Address Modal -->
-<div class="modal-overlay" id="homeOverlay" style="display:none;" onclick="closeHomeModal()">
-  <div style="background:var(--panel);border-radius:16px;padding:28px 24px;max-width:340px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.2);" onclick="event.stopPropagation()">
-    <div style="font-size:1.5rem;margin-bottom:8px;text-align:center;">🏠</div>
-    <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:4px;text-align:center;">집 주소 설정</h3>
-    <p style="font-size:0.73rem;color:var(--muted);margin-bottom:16px;line-height:1.5;text-align:center;">길찾기 출발지로 사용됩니다</p>
-    <input type="text" id="homeAddrInput" placeholder="예: 서울시 마포구 합정동" maxlength="100"
-      onkeydown="if(event.key==='Enter')saveHomeAddr()"
-      style="width:100%;padding:10px 14px;border:2px solid var(--border);border-radius:10px;font-size:0.85rem;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--panel2);color:var(--text);margin-bottom:12px;transition:border-color 0.15s;box-sizing:border-box;">
-    <div style="display:flex;gap:8px;">
-      <button onclick="closeHomeModal()" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--panel2);color:var(--text2);font-size:0.78rem;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">취소</button>
-      <button onclick="saveHomeAddr()" style="flex:1;padding:10px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">저장</button>
     </div>
   </div>
 </div>
@@ -695,15 +732,157 @@ function generateRouteLink(court) {
 
 function userBtnClick() {
   if (currentUser) {
-    if (confirm(currentUser + '님으로 로그인 중입니다.\n로그아웃하시겠습니까?')) {
-      currentUser = '';
-      localStorage.removeItem('tennis_user');
-      updateUserBtn();
-      showToast('로그아웃됨');
-    }
+    switchTab('mypage');
   } else {
     showNicknameModal();
   }
+}
+
+function logoutUser() {
+  if (confirm(currentUser + '님 로그아웃하시겠습니까?')) {
+    currentUser = '';
+    localStorage.removeItem('tennis_user');
+    updateUserBtn();
+    switchTab(prevTab || 'map');
+    showToast('로그아웃됨');
+  }
+}
+
+function renderMypageFull() {
+  document.getElementById('mpNickname').textContent = currentUser;
+  var mpHomeInput = document.getElementById('mpHomeInput');
+  var mpHomeStatus = document.getElementById('mpHomeStatus');
+  if (homeAddress) {
+    mpHomeInput.value = homeAddress;
+    mpHomeStatus.textContent = '✅ 저장된 주소: ' + homeAddress;
+    mpHomeStatus.style.color = 'var(--avail)';
+  } else {
+    mpHomeInput.value = '';
+    mpHomeStatus.textContent = '';
+  }
+  renderMpFavs();
+  fetch('/api/keywords?user=' + encodeURIComponent(currentUser))
+    .then(function(r){ return r.json(); })
+    .then(function(j){ mpGroupsCache = j.groups || []; renderMpKeywords(); })
+    .catch(function(){ renderMpKeywords(); });
+}
+
+function saveMpHomeAddr() {
+  var input = document.getElementById('mpHomeInput');
+  var statusEl = document.getElementById('mpHomeStatus');
+  var addr = (input.value || '').trim();
+  homeAddress = addr;
+  if (addr) {
+    localStorage.setItem('tennis_home_addr', addr);
+    statusEl.textContent = '✅ 저장됨: ' + addr;
+    statusEl.style.color = 'var(--avail)';
+    showToast('🏠 집 주소 저장됨');
+  } else {
+    localStorage.removeItem('tennis_home_addr');
+    statusEl.textContent = '';
+    showToast('🏠 집 주소 삭제됨');
+  }
+}
+
+var mpGroupsCache = [];
+
+function renderMpFavs() {
+  var list = document.getElementById('mpFavList');
+  var count = document.getElementById('mpFavCount');
+  var favIds = getFavs();
+  if (favIds.length === 0) {
+    count.textContent = '0개';
+    list.innerHTML = '<div style="font-size:0.78rem;color:var(--muted);">즐겨찾기한 테니스장이 없습니다.</div>';
+    return;
+  }
+  var courts = COURTS.filter(function(c){ return favIds.includes(c.svcid); });
+  count.textContent = courts.length + '개 프로그램';
+  var groups = {};
+  var groupOrder = [];
+  courts.forEach(function(c) {
+    var key = c.place || c.name;
+    if (!groups[key]) { groups[key] = { gu: c.gu, courts: [] }; groupOrder.push(key); }
+    groups[key].courts.push(c);
+  });
+  var html = '';
+  groupOrder.forEach(function(key) {
+    var g = groups[key];
+    var allSvcids = JSON.stringify(g.courts.map(function(c){ return c.svcid; })).replace(/"/g, '&quot;');
+    html += '<div style="padding:8px 0 4px;border-bottom:2px solid var(--border2,var(--border));margin-top:4px;display:flex;align-items:center;justify-content:space-between;">';
+    html += '<div style="font-size:0.82rem;font-weight:700;">' + key + ' <span style="font-size:0.68rem;color:var(--muted);font-weight:400;">📍 ' + g.gu + '</span></div>';
+    html += '<button onclick="removeFavGroup(' + allSvcids + ')" style="padding:2px 8px;border-radius:5px;border:1px solid var(--border);background:var(--panel2);color:var(--muted);font-size:0.65rem;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;">전체해제</button>';
+    html += '</div>';
+    g.courts.forEach(function(c) {
+      var statusColor = c.status === '접수중' ? '#16a34a' : c.status === '안내중' ? '#0ea5e9' : '#dc2626';
+      var shortName = c.name.replace(key, '').replace(/^[-–—\s()（）]+|[-–—\s()（）]+$/g, '').trim() || c.name;
+      html += '<div onclick="openModal(' + c.id + ')" style="display:flex;align-items:center;justify-content:space-between;padding:7px 0 7px 10px;border-bottom:1px solid var(--border);gap:8px;cursor:pointer;">';
+      html += '<div style="flex:1;min-width:0;font-size:0.78rem;font-weight:500;overflow-wrap:break-word;">' + shortName + '</div>';
+      html += '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">';
+      html += '<span style="font-size:0.7rem;color:' + statusColor + ';font-weight:700;">' + c.status + '</span>';
+      html += '<span onclick="event.stopPropagation();removeFavOne(\'' + c.svcid + '\')" style="cursor:pointer;font-size:1rem;" title="즐겨찾기 해제">⭐</span>';
+      html += '</div></div>';
+    });
+  });
+  list.innerHTML = html;
+}
+
+function removeAllFavs() {
+  if (!confirm('즐겨찾기를 전체 해제할까요?')) return;
+  setFavs([]);
+  renderMpFavs();
+  renderAll();
+}
+
+function removeFavOne(svcid) {
+  setFavs(getFavs().filter(function(id){ return id !== svcid; }));
+  renderMpFavs();
+  renderAll();
+}
+
+function removeFavGroup(svcids) {
+  setFavs(getFavs().filter(function(id){ return !svcids.includes(id); }));
+  renderMpFavs();
+  renderAll();
+}
+
+function renderMpKeywords() {
+  var el = document.getElementById('mpKeywordList');
+  if (!el) return;
+  if (!mpGroupsCache.length) {
+    el.innerHTML = '<div style="font-size:0.78rem;color:var(--muted);">등록된 키워드 없음</div>';
+    return;
+  }
+  el.innerHTML = mpGroupsCache.map(function(g, i) {
+    return '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;">'
+      + '<span>' + g.map(function(k){ return '<span style="background:var(--accent-bg,#eff6ff);color:var(--accent);border-radius:4px;padding:1px 6px;margin-right:4px;font-size:0.72rem;">' + k + '</span>'; }).join('') + '</span>'
+      + '<button onclick="removeMpKeyword(' + i + ')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:0.85rem;padding:0 4px;">✕</button>'
+      + '</div>';
+  }).join('');
+}
+
+function addMpKeyword() {
+  var input = document.getElementById('mpKwInput');
+  var raw = (input.value || '').trim();
+  if (!raw) return;
+  var keywords = raw.split(',').map(function(k){ return k.trim(); }).filter(Boolean);
+  if (!keywords.length) return;
+  fetch('/api/keywords', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user: currentUser, keywords: keywords })
+  }).then(function(r){ return r.json(); })
+    .then(function(j){ mpGroupsCache = j.groups || []; renderMpKeywords(); input.value = ''; })
+    .catch(function(){});
+}
+
+function removeMpKeyword(index) {
+  fetch('/api/keywords', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user: currentUser, index: index })
+  }).then(function(r){ return r.json(); })
+    .then(function(j){ mpGroupsCache = j.groups || []; renderMpKeywords(); })
+    .catch(function(){});
 }
 
 function updateUserBtn() {
@@ -1173,20 +1352,22 @@ function setStatusFilter(s, btn) {
 // ═══════════════════════════════════════
 // TAB
 // ═══════════════════════════════════════
+var prevTab = 'map';
 function switchTab(tab) {
+  if (tab !== 'mypage') prevTab = currentTab;
   currentTab = tab;
   document.getElementById('tabMap').classList.toggle('active', tab === 'map');
   document.getElementById('tabCal').classList.toggle('active', tab === 'list');
-  document.getElementById('tabFav').classList.toggle('active', tab === 'fav');
   document.getElementById('viewMap').classList.toggle('active', tab === 'map');
   document.getElementById('viewList').classList.toggle('active', tab === 'list');
   document.getElementById('viewFav').classList.toggle('active', tab === 'fav');
+  document.getElementById('viewMypage').classList.toggle('active', tab === 'mypage');
   if (tab === 'map') {
     setTimeout(fixMap, 50);
     setTimeout(fixMap, 300);
     setTimeout(fixMap, 800);
   }
-  if (tab === 'fav') renderFavView();
+  if (tab === 'mypage') renderMypageFull();
   renderAll();
   if (typeof updateUrlParams === 'function') updateUrlParams();
 }
