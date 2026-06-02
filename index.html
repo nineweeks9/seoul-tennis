@@ -1802,19 +1802,20 @@ function renderListView() {
       }
       // 전체 모드에선 로딩 중 표시 없이 서울시 카드만 먼저 보여줌
     } else if (naverPlaceData.courts) {
-      var bookingUrl = 'https://booking.naver.com/booking/10/bizes/210031';
       naverPlaceData.courts.forEach(function(court) {
         var status = naverStatus(court);
         var col = naverStatusColor(status);
+        var courtUrl = 'https://booking.naver.com/booking/10/bizes/210031/items/' + court.itemId;
         var slotsHtml = court.available.length > 0
           ? court.available.map(function(s) {
               var price = s.price ? ' · ' + (s.price / 10000).toFixed(0) + '만원' : '';
-              return '<span style="padding:2px 7px;border-radius:6px;background:var(--avail-bg);color:var(--avail);border:1px solid rgba(22,163,74,0.2);font-size:0.67rem;font-weight:600;white-space:nowrap;">' + s.time + price + '</span>';
+              return '<a href="' + courtUrl + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="padding:2px 7px;border-radius:6px;background:var(--avail-bg);color:var(--avail);border:1px solid rgba(22,163,74,0.2);font-size:0.67rem;font-weight:600;white-space:nowrap;text-decoration:none;cursor:pointer;">' + s.time + price + '</a>';
             }).join('')
           : '<span style="font-size:0.72rem;color:var(--muted);">슬롯 없음</span>';
 
         var card = document.createElement('div');
         card.className = 'cal-card';
+        card.style.cursor = 'pointer';
         card.innerHTML = `
           <div class="cal-card-accent" style="background:${col}"></div>
           <div class="cal-card-top">
@@ -1826,11 +1827,11 @@ function renderListView() {
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">${slotsHtml}</div>
           <div class="cal-card-actions" style="margin-top:10px;">
-            <a class="cal-card-btn primary" href="${bookingUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">네이버 예약 →</a>
+            <a class="cal-card-btn primary" href="${courtUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">네이버 예약 →</a>
           </div>`;
         card.onclick = function(e) {
-          if (e.target.closest('.cal-card-btn') || e.target.closest('a')) return;
-          selectNaverCourt(court);
+          if (e.target.closest('a')) return;
+          window.open(courtUrl, '_blank', 'noopener');
         };
         grid.appendChild(card);
         cardCount++;
