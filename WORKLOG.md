@@ -109,7 +109,7 @@ api/
 - [ ] `home.js` 환경변수 키 이름이 `favs.js`와 다름 (`UPSTASH_REDIS_REST_*` vs `KV_REST_API_*`) — 통일 필요
 
 ### 다음 작업
-- [ ] **네이버 예약 구장 통합** (아래 섹션 참조)
+- [ ] **네이버 예약 UI 통합** — `booking.naver.com/booking/10/bizes/210031` 뷰에서 날짜 선택 시 코트별 예약 가능 시간대가 표시됨. 해당 인터랙션 흐름을 역공학해서 날짜→슬롯 조회 방식 확인 후 UI 재통합 필요. (API는 `api/naver.js`에 구현 완료, UI만 미완)
 
 ---
 
