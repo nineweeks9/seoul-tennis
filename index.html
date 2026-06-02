@@ -385,6 +385,25 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
   <!-- ② 목록뷰 -->
   <div class="view view-cal" id="viewList">
     <div class="cal-scroll" id="listScroll">
+
+      <!-- 네이버 예약 섹션 -->
+      <div id="naverSection" style="margin-bottom:20px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:0 2px;">
+          <span style="font-size:0.88rem;font-weight:800;color:var(--text);">🟢 네이버 예약 현황</span>
+          <span style="font-size:0.7rem;color:var(--muted);">실시간 코트 슬롯</span>
+          <div style="flex:1"></div>
+          <input type="date" id="naverDateInput" onchange="loadNaverSection()"
+            style="padding:4px 8px;border:1px solid var(--border);border-radius:7px;font-size:0.75rem;font-family:'Noto Sans KR',sans-serif;background:var(--panel2);color:var(--text);outline:none;cursor:pointer;">
+        </div>
+        <div id="naverGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;">
+          <div class="empty-state" style="grid-column:1/-1;padding:24px"><span class="emoji" style="font-size:1.5rem">⏳</span><span class="msg">불러오는 중...</span></div>
+        </div>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin:4px 0 20px;"></div>
+
+      <!-- 서울시 공공예약 -->
+      <div style="font-size:0.88rem;font-weight:800;color:var(--text);margin-bottom:12px;padding:0 2px;">🏙️ 서울시 공공예약</div>
       <div class="cal-card-grid" id="listGrid">
         <div class="empty-state"><span class="emoji">⏳</span><span class="msg">데이터 불러오는 중...</span></div>
       </div>
@@ -1422,6 +1441,7 @@ function switchTab(tab) {
     setTimeout(fixMap, 800);
   }
   if (tab === 'mypage') renderMypageFull();
+  if (tab === 'list') loadNaverSection();
   renderAll();
   if (typeof updateUrlParams === 'function') updateUrlParams();
 }
@@ -1651,6 +1671,88 @@ function closeDetailPanel() {
   document.getElementById('detailPanel').classList.remove('open');
   document.querySelectorAll('.court-item').forEach(function(el){el.classList.remove('selected');});
   renderMapMarkers();
+}
+
+// ═══════════════════════════════════════
+// NAVER SECTION
+// ═══════════════════════════════════════
+(function initNaverDate() {
+  var input = document.getElementById('naverDateInput');
+  if (!input) return;
+  var today = new Date().toISOString().slice(0, 10);
+  input.value = today;
+  input.min = today;
+  var max = new Date(Date.now() + 13 * 86400000).toISOString().slice(0, 10);
+  input.max = max;
+})();
+
+async function loadNaverSection() {
+  var grid = document.getElementById('naverGrid');
+  var date = document.getElementById('naverDateInput').value;
+  if (!grid || !date) return;
+
+  grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;padding:24px"><span class="emoji" style="font-size:1.5rem">⏳</span><span class="msg">불러오는 중...</span></div>';
+
+  try {
+    var res = await fetch('/api/naver?placeId=18754970&date=' + date);
+    var data = await res.json();
+    if (!data.courts) throw new Error(data.error || '응답 오류');
+    renderNaverCards(grid, data, date);
+  } catch(e) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;padding:24px"><span class="emoji" style="font-size:1.5rem">⚠️</span><span class="msg">네이버 데이터를 불러오지 못했어요</span><span class="sub">' + e.message + '</span></div>';
+  }
+}
+
+function renderNaverCards(grid, data, date) {
+  if (!data.courts || data.courts.length === 0) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;padding:24px"><span class="emoji" style="font-size:1.5rem">📭</span><span class="msg">슬롯 정보 없음</span></div>';
+    return;
+  }
+
+  var availTotal = data.availableCourts;
+  var bookingUrl = 'https://booking.naver.com/booking/10/bizes/210031';
+
+  grid.innerHTML = '';
+
+  // 장소 헤더 카드
+  var header = document.createElement('div');
+  header.style.cssText = 'grid-column:1/-1;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:12px;';
+  header.innerHTML = `
+    <div style="flex:1">
+      <div style="font-size:0.88rem;font-weight:700;">${data.placeName}</div>
+      <div style="font-size:0.7rem;color:var(--muted);margin-top:2px;">${date} 기준 · 예약가능 코트 <span style="color:${availTotal > 0 ? 'var(--avail)' : 'var(--full)'};font-weight:700;">${availTotal}</span> / ${data.totalCourts}개</div>
+    </div>
+    <a href="${bookingUrl}" target="_blank" rel="noopener" style="padding:6px 14px;border-radius:8px;background:var(--accent);color:#fff;font-size:0.72rem;font-weight:700;text-decoration:none;white-space:nowrap;">예약하기 →</a>`;
+  grid.appendChild(header);
+
+  data.courts.forEach(function(court) {
+    var avail = court.availableCount > 0;
+    var card = document.createElement('div');
+    card.className = 'cal-card';
+    card.style.cursor = 'default';
+
+    var slotsHtml = '';
+    if (court.available.length > 0) {
+      slotsHtml = court.available.map(function(s) {
+        var price = s.price ? (s.price / 10000).toFixed(0) + '만원' : '';
+        return `<span style="display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:6px;background:var(--avail-bg);color:var(--avail);border:1px solid rgba(22,163,74,0.2);font-size:0.68rem;font-weight:600;white-space:nowrap;">${s.time}${price ? ' · ' + price : ''}</span>`;
+      }).join('');
+    } else {
+      slotsHtml = '<span style="font-size:0.72rem;color:var(--muted);">예약 가능 슬롯 없음</span>';
+    }
+
+    card.innerHTML = `
+      <div class="cal-card-accent" style="background:${avail ? 'var(--avail)' : 'var(--full)'}"></div>
+      <div class="cal-card-top">
+        <div>
+          <div class="cal-card-name">${court.name}</div>
+          <div class="cal-card-gu">가능 ${court.availableCount} / 전체 ${court.totalSlots}슬롯</div>
+        </div>
+        <span class="badge ${avail ? '접수중' : '예약마감'}">${avail ? '예약가능' : '마감'}</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;">${slotsHtml}</div>`;
+    grid.appendChild(card);
+  });
 }
 
 // ═══════════════════════════════════════
