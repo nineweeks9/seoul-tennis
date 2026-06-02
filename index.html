@@ -384,26 +384,20 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
 
   <!-- ② 목록뷰 -->
   <div class="view view-cal" id="viewList">
-    <div class="cal-scroll" id="listScroll">
-
-      <!-- 네이버 예약 섹션 -->
-      <div id="naverSection" style="margin-bottom:20px;">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:0 2px;">
-          <span style="font-size:0.88rem;font-weight:800;color:var(--text);">🟢 네이버 예약 현황</span>
-          <span style="font-size:0.7rem;color:var(--muted);">실시간 코트 슬롯</span>
-          <div style="flex:1"></div>
-          <input type="date" id="naverDateInput" onchange="loadNaverSection()"
-            style="padding:4px 8px;border:1px solid var(--border);border-radius:7px;font-size:0.75rem;font-family:'Noto Sans KR',sans-serif;background:var(--panel2);color:var(--text);outline:none;cursor:pointer;">
-        </div>
-        <div id="naverGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;">
-          <div class="empty-state" style="grid-column:1/-1;padding:24px"><span class="emoji" style="font-size:1.5rem">⏳</span><span class="msg">불러오는 중...</span></div>
-        </div>
+    <div class="cal-toolbar" style="flex-wrap:wrap;gap:6px;">
+      <div class="cal-toolbar-left">
+        <span class="cal-toolbar-title" id="listTitle">전체 시설</span>
+        <span class="cal-toolbar-sub" id="listSub">0개 시설</span>
       </div>
-
-      <div style="height:1px;background:var(--border);margin:4px 0 20px;"></div>
-
-      <!-- 서울시 공공예약 -->
-      <div style="font-size:0.88rem;font-weight:800;color:var(--text);margin-bottom:12px;padding:0 2px;">🏙️ 서울시 공공예약</div>
+      <div class="cal-toolbar-right" style="gap:6px;flex-wrap:wrap;">
+        <button class="filter-pill active" data-src="전체" onclick="setSrcFilter('전체')">전체</button>
+        <button class="filter-pill" data-src="서울시" onclick="setSrcFilter('서울시')">🏙️ 서울시</button>
+        <button class="filter-pill" data-src="네이버" onclick="setSrcFilter('네이버')">🟢 네이버</button>
+        <input type="date" id="naverDateInput" onchange="onNaverDateChange()"
+          style="padding:4px 8px;border:1px solid var(--border);border-radius:7px;font-size:0.75rem;font-family:'Noto Sans KR',sans-serif;background:var(--panel2);color:var(--text);outline:none;cursor:pointer;">
+      </div>
+    </div>
+    <div class="cal-scroll" id="listScroll">
       <div class="cal-card-grid" id="listGrid">
         <div class="empty-state"><span class="emoji">⏳</span><span class="msg">데이터 불러오는 중...</span></div>
       </div>
@@ -550,7 +544,11 @@ let kwFilters = [];  // 다중선택 배열
 let favOnly = false;
 let autoRefreshEnabled = true;
 let autoRefreshTimer = null;
+let srcFilter = '전체';    // 출처 필터: 전체 / 서울시 / 네이버
+let naverPlaceData = null; // 네이버 API 응답 캐시
+let naverDate = new Date().toISOString().slice(0, 10);
 const markers = {};
+var naverMapMarker = null;
 
 const GU_COORDS = {
   '종로구':{lat:37.5730,lng:126.9794},'중구':{lat:37.5636,lng:126.9976},'용산구':{lat:37.5384,lng:126.9654},
@@ -1441,7 +1439,10 @@ function switchTab(tab) {
     setTimeout(fixMap, 800);
   }
   if (tab === 'mypage') renderMypageFull();
-  if (tab === 'list') loadNaverSection();
+  // 네이버 데이터 없으면 지도/목록 탭 진입 시 로드
+  if ((tab === 'list' || tab === 'map') && !naverPlaceData) {
+    loadNaverData().then(function() { renderListView(); renderNaverMapMarker(); });
+  }
   renderAll();
   if (typeof updateUrlParams === 'function') updateUrlParams();
 }
@@ -1452,6 +1453,7 @@ function switchTab(tab) {
 function renderAll() {
   renderMapList();
   renderMapMarkers();
+  renderNaverMapMarker();
   renderListView();
   renderFavView();
 }
@@ -1627,6 +1629,69 @@ function renderMapList() {
   });
 }
 
+// ═══════════════════════════════════════
+// NAVER MAP MARKER
+// ═══════════════════════════════════════
+function renderNaverMapMarker() {
+  if (naverMapMarker) { map.removeLayer(naverMapMarker); naverMapMarker = null; }
+  if (!naverPlaceData) return;
+
+  var avail = naverPlaceData.availableCourts;
+  var total = naverPlaceData.totalCourts;
+  var col = avail > 0 ? '#16a34a' : '#dc2626';
+  var label = avail > 0 ? avail + '/' + total : '✕';
+
+  var icon = L.divIcon({
+    html: '<div style="position:relative;">'
+        + '<div class="court-marker" style="width:34px;height:34px;background:' + col + ';font-size:0.58rem;font-weight:800;">' + label + '</div>'
+        + '<span style="position:absolute;top:-7px;right:-8px;background:#0369a1;color:#fff;font-size:0.48rem;font-weight:800;padding:1px 4px;border-radius:4px;border:1.5px solid #fff;white-space:nowrap;">N</span>'
+        + '</div>',
+    className: '', iconSize: [42, 42], iconAnchor: [21, 21],
+  });
+
+  naverMapMarker = L.marker([naverPlaceData.lat, naverPlaceData.lng], { icon: icon })
+    .addTo(map)
+    .on('click', function() { selectNaverPlace(); });
+}
+
+function selectNaverPlace() {
+  if (!naverPlaceData) return;
+  var panel = document.getElementById('detailPanel');
+  var bookingUrl = 'https://booking.naver.com/booking/10/bizes/210031';
+
+  var courtsHtml = naverPlaceData.courts.map(function(c) {
+    var status = naverStatus(c);
+    var col = naverStatusColor(status);
+    var slots = c.available.slice(0, 6).map(function(s) {
+      return '<span style="padding:1px 6px;border-radius:4px;background:var(--avail-bg);color:var(--avail);font-size:0.64rem;font-weight:600;white-space:nowrap;">' + s.time + '</span>';
+    }).join('');
+    return '<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">'
+      + '<span style="width:8px;height:8px;border-radius:50%;background:' + col + ';flex-shrink:0;"></span>'
+      + '<span style="font-size:0.74rem;font-weight:600;min-width:110px;">' + c.name + '</span>'
+      + '<span style="font-size:0.64rem;color:' + col + ';font-weight:700;">' + status + '</span>'
+      + (slots ? '<div style="display:flex;gap:3px;flex-wrap:wrap;margin-left:auto;">' + slots + '</div>' : '')
+      + '</div>';
+  }).join('');
+
+  panel.innerHTML = `
+    <button class="detail-close" onclick="closeDetailPanel()">✕</button>
+    <h3>🟢 ${naverPlaceData.placeName}</h3>
+    <div style="font-size:0.7rem;color:var(--muted);margin-bottom:8px;">${naverDate} · 예약가능 <strong style="color:var(--avail)">${naverPlaceData.availableCourts}</strong> / ${naverPlaceData.totalCourts}개 코트</div>
+    <div style="max-height:160px;overflow-y:auto;">${courtsHtml}</div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <a class="goto-btn" href="${bookingUrl}" target="_blank" rel="noopener" style="flex:1;background:var(--accent);color:#fff;">네이버 예약 →</a>
+    </div>`;
+  panel.classList.add('open');
+}
+
+function selectNaverCourt(court) {
+  switchTab('map');
+  setTimeout(function() {
+    if (naverPlaceData) map.flyTo([naverPlaceData.lat, naverPlaceData.lng], 15, { duration: 0.7 });
+    selectNaverPlace();
+  }, 150);
+}
+
 function selectCourt(id, flyTo) {
   selectedCourtId = id;
   const court = filteredCourts.find(c => c.id === id) || COURTS.find(c => c.id === id);
@@ -1674,85 +1739,48 @@ function closeDetailPanel() {
 }
 
 // ═══════════════════════════════════════
-// NAVER SECTION
+// NAVER DATA
 // ═══════════════════════════════════════
 (function initNaverDate() {
   var input = document.getElementById('naverDateInput');
   if (!input) return;
-  var today = new Date().toISOString().slice(0, 10);
-  input.value = today;
-  input.min = today;
-  var max = new Date(Date.now() + 13 * 86400000).toISOString().slice(0, 10);
-  input.max = max;
+  input.value = naverDate;
+  input.min = naverDate;
+  input.max = new Date(Date.now() + 13 * 86400000).toISOString().slice(0, 10);
 })();
 
-async function loadNaverSection() {
-  var grid = document.getElementById('naverGrid');
-  var date = document.getElementById('naverDateInput').value;
-  if (!grid || !date) return;
-
-  grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;padding:24px"><span class="emoji" style="font-size:1.5rem">⏳</span><span class="msg">불러오는 중...</span></div>';
-
-  try {
-    var res = await fetch('/api/naver?placeId=18754970&date=' + date);
-    var data = await res.json();
-    if (!data.courts) throw new Error(data.error || '응답 오류');
-    renderNaverCards(grid, data, date);
-  } catch(e) {
-    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;padding:24px"><span class="emoji" style="font-size:1.5rem">⚠️</span><span class="msg">네이버 데이터를 불러오지 못했어요</span><span class="sub">' + e.message + '</span></div>';
-  }
+function onNaverDateChange() {
+  var input = document.getElementById('naverDateInput');
+  if (input) naverDate = input.value;
+  naverPlaceData = null;
+  loadNaverData().then(function() { renderListView(); renderNaverMapMarker(); });
 }
 
-function renderNaverCards(grid, data, date) {
-  if (!data.courts || data.courts.length === 0) {
-    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;padding:24px"><span class="emoji" style="font-size:1.5rem">📭</span><span class="msg">슬롯 정보 없음</span></div>';
-    return;
-  }
-
-  var availTotal = data.availableCourts;
-  var bookingUrl = 'https://booking.naver.com/booking/10/bizes/210031';
-
-  grid.innerHTML = '';
-
-  // 장소 헤더 카드
-  var header = document.createElement('div');
-  header.style.cssText = 'grid-column:1/-1;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:12px;';
-  header.innerHTML = `
-    <div style="flex:1">
-      <div style="font-size:0.88rem;font-weight:700;">${data.placeName}</div>
-      <div style="font-size:0.7rem;color:var(--muted);margin-top:2px;">${date} 기준 · 예약가능 코트 <span style="color:${availTotal > 0 ? 'var(--avail)' : 'var(--full)'};font-weight:700;">${availTotal}</span> / ${data.totalCourts}개</div>
-    </div>
-    <a href="${bookingUrl}" target="_blank" rel="noopener" style="padding:6px 14px;border-radius:8px;background:var(--accent);color:#fff;font-size:0.72rem;font-weight:700;text-decoration:none;white-space:nowrap;">예약하기 →</a>`;
-  grid.appendChild(header);
-
-  data.courts.forEach(function(court) {
-    var avail = court.availableCount > 0;
-    var card = document.createElement('div');
-    card.className = 'cal-card';
-    card.style.cursor = 'default';
-
-    var slotsHtml = '';
-    if (court.available.length > 0) {
-      slotsHtml = court.available.map(function(s) {
-        var price = s.price ? (s.price / 10000).toFixed(0) + '만원' : '';
-        return `<span style="display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:6px;background:var(--avail-bg);color:var(--avail);border:1px solid rgba(22,163,74,0.2);font-size:0.68rem;font-weight:600;white-space:nowrap;">${s.time}${price ? ' · ' + price : ''}</span>`;
-      }).join('');
-    } else {
-      slotsHtml = '<span style="font-size:0.72rem;color:var(--muted);">예약 가능 슬롯 없음</span>';
-    }
-
-    card.innerHTML = `
-      <div class="cal-card-accent" style="background:${avail ? 'var(--avail)' : 'var(--full)'}"></div>
-      <div class="cal-card-top">
-        <div>
-          <div class="cal-card-name">${court.name}</div>
-          <div class="cal-card-gu">가능 ${court.availableCount} / 전체 ${court.totalSlots}슬롯</div>
-        </div>
-        <span class="badge ${avail ? '접수중' : '예약마감'}">${avail ? '예약가능' : '마감'}</span>
-      </div>
-      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;">${slotsHtml}</div>`;
-    grid.appendChild(card);
+function setSrcFilter(src) {
+  srcFilter = src;
+  document.querySelectorAll('[data-src]').forEach(function(el) {
+    el.classList.toggle('active', el.dataset.src === src);
   });
+  renderListView();
+}
+
+async function loadNaverData() {
+  try {
+    var res = await fetch('/api/naver?placeId=18754970&date=' + naverDate);
+    var data = await res.json();
+    if (data.courts) naverPlaceData = data;
+  } catch(e) { naverPlaceData = null; }
+}
+
+function naverStatus(court) {
+  if (!court.totalSlots) return '정보없음';
+  return court.availableCount > 0 ? '예약가능' : '마감';
+}
+
+function naverStatusColor(status) {
+  if (status === '예약가능') return 'var(--avail)';
+  if (status === '마감') return 'var(--full)';
+  return 'var(--muted)';
 }
 
 // ═══════════════════════════════════════
@@ -1760,56 +1788,107 @@ function renderNaverCards(grid, data, date) {
 // ═══════════════════════════════════════
 function renderListView() {
   const grid = document.getElementById('listGrid');
-  var lt = document.getElementById('listTitle'); if(lt) lt.textContent = statusFilter === '전체' ? '전체 시설' : statusFilter + ' 시설';
-  var ls = document.getElementById('listSub'); if(ls) ls.textContent = `${filteredCourts.length}개 시설`;
-
-  // listGuSelect 동기화
-  var lgs = document.getElementById('listGuSelect'); if(lgs) lgs.value = document.getElementById('guSelect').value;
-
-  if (filteredCourts.length === 0) {
-    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><span class="emoji">🔍</span><span class="msg">조건에 맞는 시설이 없습니다</span><span class="sub">필터를 조정해보세요</span></div>';
-    return;
-  }
+  var lt = document.getElementById('listTitle');
+  var ls = document.getElementById('listSub');
 
   grid.innerHTML = '';
-  filteredCourts.forEach(court => {
-    const faved = isFav(court.svcid);
-    const col = statusColor(court.status);
-    const url = court.svcUrl || (court.svcid ?
-      `https://yeyak.seoul.go.kr/web/reservation/selectReservView.do?rsv_svc_id=${court.svcid}` :
-      'https://yeyak.seoul.go.kr');
+  var cardCount = 0;
 
-    const card = document.createElement('div');
-    card.className = 'cal-card';
-    const kwTags = getKeywords(court).map(function(k) {
-      return '<span class="ci-tag" style="background:var(--accent-bg);color:var(--accent);border-color:rgba(37,99,235,0.2)">' + kwLabel(k) + '</span>';
-    }).join('');
-    card.innerHTML = `
-      <div class="cal-card-accent" style="background:${col}"></div>
-      <div class="cal-card-top">
-        <div>
-          <div class="cal-card-name">${court.name} ${ddayBadge(court)}</div>
-          <div class="cal-card-gu">${court.gu}${court.place ? ' · ' + court.place : ''}${kwTags ? ' ' + kwTags : ''}</div>
+  // ── 네이버 카드 ──
+  if (srcFilter !== '서울시') {
+    if (!naverPlaceData) {
+      if (srcFilter === '네이버') {
+        grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><span class="emoji">⏳</span><span class="msg">네이버 데이터 불러오는 중...</span></div>';
+      }
+      // 전체 모드에선 로딩 중 표시 없이 서울시 카드만 먼저 보여줌
+    } else if (naverPlaceData.courts) {
+      var bookingUrl = 'https://booking.naver.com/booking/10/bizes/210031';
+      naverPlaceData.courts.forEach(function(court) {
+        var status = naverStatus(court);
+        var col = naverStatusColor(status);
+        var slotsHtml = court.available.length > 0
+          ? court.available.map(function(s) {
+              var price = s.price ? ' · ' + (s.price / 10000).toFixed(0) + '만원' : '';
+              return '<span style="padding:2px 7px;border-radius:6px;background:var(--avail-bg);color:var(--avail);border:1px solid rgba(22,163,74,0.2);font-size:0.67rem;font-weight:600;white-space:nowrap;">' + s.time + price + '</span>';
+            }).join('')
+          : '<span style="font-size:0.72rem;color:var(--muted);">슬롯 없음</span>';
+
+        var card = document.createElement('div');
+        card.className = 'cal-card';
+        card.innerHTML = `
+          <div class="cal-card-accent" style="background:${col}"></div>
+          <div class="cal-card-top">
+            <div>
+              <div class="cal-card-name">${court.name}</div>
+              <div class="cal-card-gu">${naverPlaceData.placeName} · <span style="font-size:0.65rem;padding:1px 6px;border-radius:4px;background:#e8f4fd;color:#0369a1;font-weight:600;border:1px solid #bae6fd;">🟢 네이버</span></div>
+            </div>
+            <span class="badge ${status === '예약가능' ? '접수중' : status === '마감' ? '예약마감' : '예약일시중지'}">${status}</span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">${slotsHtml}</div>
+          <div class="cal-card-actions" style="margin-top:10px;">
+            <a class="cal-card-btn primary" href="${bookingUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">네이버 예약 →</a>
+          </div>`;
+        card.onclick = function(e) {
+          if (e.target.closest('.cal-card-btn') || e.target.closest('a')) return;
+          selectNaverCourt(court);
+        };
+        grid.appendChild(card);
+        cardCount++;
+      });
+    }
+  }
+
+  // ── 서울시 카드 ──
+  if (srcFilter !== '네이버') {
+    filteredCourts.forEach(function(court) {
+      const faved = isFav(court.svcid);
+      const col = statusColor(court.status);
+      const url = court.svcUrl || (court.svcid ?
+        'https://yeyak.seoul.go.kr/web/reservation/selectReservView.do?rsv_svc_id=' + court.svcid :
+        'https://yeyak.seoul.go.kr');
+      const kwTags = getKeywords(court).map(function(k) {
+        return '<span class="ci-tag" style="background:var(--accent-bg);color:var(--accent);border-color:rgba(37,99,235,0.2)">' + kwLabel(k) + '</span>';
+      }).join('');
+
+      const card = document.createElement('div');
+      card.className = 'cal-card';
+      card.innerHTML = `
+        <div class="cal-card-accent" style="background:${col}"></div>
+        <div class="cal-card-top">
+          <div>
+            <div class="cal-card-name">${court.name} ${ddayBadge(court)}</div>
+            <div class="cal-card-gu">${court.gu}${court.place ? ' · ' + court.place : ''}${kwTags ? ' ' + kwTags : ''}</div>
+          </div>
+          <span class="badge ${court.status}">${court.status || '미정'}</span>
         </div>
-        <span class="badge ${court.status}">${court.status || '미정'}</span>
-      </div>
-      <div class="cal-card-body">
-        ${court.payType ? `<div class="cal-card-row" style="align-items:flex-start"><span class="icon">💰</span><span class="label">요금</span><div><span style="color:${court.payType === '무료' ? 'var(--avail)' : 'var(--text)'};font-weight:600">${court.payType}</span>${court.priceInfo ? '<div style="font-size:0.68rem;color:var(--text2);margin-top:2px;line-height:1.6">' + court.priceInfo.split(' / ').join('<br>') + '</div>' : ''}</div></div>` : ''}
-        ${court.svcStart ? `<div class="cal-card-row"><span class="icon">📅</span><span class="label">기간</span>${fmtDate(court.svcStart)} ~ ${fmtDate(court.svcEnd)}</div>` : ''}
-        ${court.useTimeStart ? `<div class="cal-card-row"><span class="icon">⏰</span><span class="label">시간</span>${court.useTimeStart} ~ ${court.useTimeEnd}</div>` : ''}
-        ${court.rcpStart ? `<div class="cal-card-row"><span class="icon">🗓️</span><span class="label">접수</span>${fmtDate(court.rcpStart)} ~ ${fmtDate(court.rcpEnd)}</div>` : ''}
-        ${court.useTgtInfo ? `<div class="cal-card-row"><span class="icon">👤</span><span class="label">대상</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${court.useTgtInfo.slice(0, 40)}</span></div>` : ''}
-        ${court.telNo ? `<div class="cal-card-row"><span class="icon">📞</span><span class="label">전화</span><a href="tel:${court.telNo}" style="color:var(--accent);text-decoration:none" onclick="event.stopPropagation()">${court.telNo}</a></div>` : ''}
-        ${court.minClass ? `<div class="cal-card-row"><span class="icon">🏷️</span><span class="label">분류</span>${court.minClass}</div>` : ''}
-      </div>
-      <div class="cal-card-actions">
-        <button class="cal-card-btn" onclick="toggleFav('${court.svcid}',event)">${faved ? '⭐ 즐겨찾기 해제' : '☆ 즐겨찾기'}</button>
-        <button class="cal-card-btn" onclick="event.stopPropagation();switchTab('map');setTimeout(function(){selectCourt(${court.id},true)},100)" style="color:var(--accent)">🗺️ 위치확인</button>
-        <a class="cal-card-btn primary" href="${url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">예약 바로가기 →</a>
-      </div>`;
-    card.onclick = function(e) { if(e.target.closest('.cal-card-btn')||e.target.closest('a')) return; openModal(court.id); };
-    grid.appendChild(card);
-  });
+        <div class="cal-card-body">
+          ${court.payType ? `<div class="cal-card-row" style="align-items:flex-start"><span class="icon">💰</span><span class="label">요금</span><div><span style="color:${court.payType === '무료' ? 'var(--avail)' : 'var(--text)'};font-weight:600">${court.payType}</span>${court.priceInfo ? '<div style="font-size:0.68rem;color:var(--text2);margin-top:2px;line-height:1.6">' + court.priceInfo.split(' / ').join('<br>') + '</div>' : ''}</div></div>` : ''}
+          ${court.svcStart ? `<div class="cal-card-row"><span class="icon">📅</span><span class="label">기간</span>${fmtDate(court.svcStart)} ~ ${fmtDate(court.svcEnd)}</div>` : ''}
+          ${court.useTimeStart ? `<div class="cal-card-row"><span class="icon">⏰</span><span class="label">시간</span>${court.useTimeStart} ~ ${court.useTimeEnd}</div>` : ''}
+          ${court.rcpStart ? `<div class="cal-card-row"><span class="icon">🗓️</span><span class="label">접수</span>${fmtDate(court.rcpStart)} ~ ${fmtDate(court.rcpEnd)}</div>` : ''}
+          ${court.useTgtInfo ? `<div class="cal-card-row"><span class="icon">👤</span><span class="label">대상</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${court.useTgtInfo.slice(0, 40)}</span></div>` : ''}
+          ${court.telNo ? `<div class="cal-card-row"><span class="icon">📞</span><span class="label">전화</span><a href="tel:${court.telNo}" style="color:var(--accent);text-decoration:none" onclick="event.stopPropagation()">${court.telNo}</a></div>` : ''}
+          ${court.minClass ? `<div class="cal-card-row"><span class="icon">🏷️</span><span class="label">분류</span>${court.minClass}</div>` : ''}
+        </div>
+        <div class="cal-card-actions">
+          <button class="cal-card-btn" onclick="toggleFav('${court.svcid}',event)">${faved ? '⭐ 즐겨찾기 해제' : '☆ 즐겨찾기'}</button>
+          <button class="cal-card-btn" onclick="event.stopPropagation();switchTab('map');setTimeout(function(){selectCourt(${court.id},true)},100)" style="color:var(--accent)">🗺️ 위치확인</button>
+          <a class="cal-card-btn primary" href="${url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">예약 바로가기 →</a>
+        </div>`;
+      card.onclick = function(e) { if (e.target.closest('.cal-card-btn') || e.target.closest('a')) return; openModal(court.id); };
+      grid.appendChild(card);
+      cardCount++;
+    });
+  }
+
+  if (cardCount === 0 && srcFilter !== '네이버') {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><span class="emoji">🔍</span><span class="msg">조건에 맞는 시설이 없습니다</span><span class="sub">필터를 조정해보세요</span></div>';
+  }
+
+  var naverCount = (srcFilter !== '서울시' && naverPlaceData) ? naverPlaceData.courts.length : 0;
+  var seoulCount = srcFilter !== '네이버' ? filteredCourts.length : 0;
+  if (lt) lt.textContent = srcFilter === '전체' ? '전체 시설' : srcFilter + ' 시설';
+  if (ls) ls.textContent = (naverCount + seoulCount) + '개 시설';
 }
 
 // ═══════════════════════════════════════
@@ -2106,6 +2185,7 @@ readUrlParams();
 tick();
 setInterval(tick, 30000);
 loadSeoulAPI();
+loadNaverData().then(function() { renderNaverMapMarker(); renderListView(); });
 </script>
 </body>
 </html>
