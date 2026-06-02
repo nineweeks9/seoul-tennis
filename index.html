@@ -491,6 +491,20 @@ html,body{height:100%;overflow:hidden;font-family:'Noto Sans KR',sans-serif;back
   </div>
 </div>
 
+<!-- Welcome Overlay (최초 접속) -->
+<div id="welcomeOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(6px);z-index:99999;display:flex;align-items:center;justify-content:center;">
+  <div style="background:var(--panel);border-radius:20px;padding:36px 28px;max-width:360px;width:90%;box-shadow:0 16px 60px rgba(0,0,0,0.3);text-align:center;" onclick="event.stopPropagation()">
+    <div style="font-size:2.5rem;margin-bottom:12px;">🎾</div>
+    <h2 style="font-size:1.1rem;font-weight:800;margin-bottom:6px;color:var(--text);">서울 테니스 예약 현황</h2>
+    <p style="font-size:0.76rem;color:var(--muted);margin-bottom:24px;line-height:1.6;">등록된 닉네임을 입력해주세요</p>
+    <input type="text" id="welcomeInput" placeholder="닉네임 입력" maxlength="20"
+      onkeydown="if(event.key==='Enter')submitWelcome()"
+      style="width:100%;padding:11px 14px;border:2px solid var(--border);border-radius:10px;font-size:0.88rem;font-family:'Noto Sans KR',sans-serif;outline:none;background:var(--panel2);color:var(--text);text-align:center;margin-bottom:8px;transition:border-color 0.15s;">
+    <p id="welcomeError" style="font-size:0.72rem;color:var(--full);min-height:18px;margin-bottom:10px;"></p>
+    <button id="welcomeBtn" onclick="submitWelcome()" style="width:100%;padding:12px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:opacity 0.15s;">입장하기</button>
+  </div>
+</div>
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
@@ -555,6 +569,46 @@ const KNOWN_LOCS = {
 var currentUser = localStorage.getItem('tennis_user') || '';
 var favCache = []; // 메모리 캐시
 var pendingFavAction = null; // 닉네임 입력 대기 중인 액션
+
+// ═══════════════════════════════════════
+// WELCOME (최초 접속 닉네임 인증)
+// ═══════════════════════════════════════
+(function() {
+  if (currentUser) return;
+  var overlay = document.getElementById('welcomeOverlay');
+  overlay.style.display = 'flex';
+  setTimeout(function(){ document.getElementById('welcomeInput').focus(); }, 100);
+})();
+
+async function submitWelcome() {
+  var input = document.getElementById('welcomeInput');
+  var errEl = document.getElementById('welcomeError');
+  var btn = document.getElementById('welcomeBtn');
+  var name = (input.value || '').trim();
+  if (!name) { input.style.borderColor = 'var(--full)'; errEl.textContent = '닉네임을 입력해주세요'; return; }
+  input.style.borderColor = 'var(--border)';
+  errEl.textContent = '';
+  btn.disabled = true; btn.style.opacity = '0.6'; btn.textContent = '확인 중...';
+  try {
+    var res = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname: name }) });
+    var data = await res.json();
+    if (data.allowed) {
+      currentUser = name;
+      localStorage.setItem('tennis_user', name);
+      document.getElementById('welcomeOverlay').style.display = 'none';
+      updateUserBtn();
+      loadFavsFromServer(name);
+      showToast('👋 ' + name + '님 환영해요!');
+    } else {
+      input.style.borderColor = 'var(--full)';
+      errEl.textContent = '등록되지 않은 닉네임이에요';
+      btn.disabled = false; btn.style.opacity = '1'; btn.textContent = '입장하기';
+    }
+  } catch(e) {
+    errEl.textContent = '서버 오류가 발생했어요. 잠시 후 다시 시도해주세요';
+    btn.disabled = false; btn.style.opacity = '1'; btn.textContent = '입장하기';
+  }
+}
 
 function getFavs() {
   return favCache;
