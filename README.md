@@ -6,6 +6,11 @@
 
 ## 기능
 
+### 접근 제어
+* 🔒 **닉네임 인증** — 최초 접속 시 닉네임 입력 화면 표시 (건너뛰기 불가)
+* ✅ Upstash Redis `tennis_whitelist` SET에 등록된 닉네임만 입장 허용
+* 💾 인증 후 닉네임은 localStorage에 저장 (재방문 시 자동 입장)
+
 ### 핵심
 * 🗺️ **지도뷰** — Leaflet 기반 서울 전체 테니스장 마커 표시 (상태별 색상 구분)
 * 📋 **목록뷰** — 카드 그리드, 상태/요금/기간/대상/전화번호 정보 표시
@@ -50,6 +55,8 @@ Vercel 대시보드 → **Settings → Environment Variables**:
 | Key | Value |
 |-----|-------|
 | `SEOUL_API_KEY` | 발급받은 인증키 |
+| `UPSTASH_REDIS_REST_URL` | Upstash Redis URL (인증, 즐겨찾기, 집 주소, 알림 키워드) |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis Token |
 
 > API 키 발급: [data.seoul.go.kr](https://data.seoul.go.kr) → `ListPublicReservationSport` 신청
 
@@ -59,3 +66,4 @@ Vercel 대시보드 → **Settings → Environment Variables**:
 * Leaflet.js (지도)
 * Vercel Serverless Functions (API 프록시, CORS 해결)
 * 서울 열린데이터광장 OpenAPI
+* Upstash Redis (닉네임 인증 whitelist, 즐겨찾기, 집 주소, 알림 키워드)

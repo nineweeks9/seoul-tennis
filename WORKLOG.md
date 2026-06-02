@@ -16,6 +16,8 @@
 | 2026-04-30 | `2801fca` | fix: 모바일 반응형 CSS 복구 (safe-area, bottom sheet, 터치 영역) |
 | 2026-04-30 | `d4c12a6` | feat: 구글맵 길찾기 추가 (집 주소 설정, 모달/지도패널 버튼) |
 | 2026-04-30 | `6fde5fb` | feat: 마이페이지 복원 (즐겨찾기·키워드·집주소), 구글맵 길찾기 통합 |
+| 2026-06-02 | `16c9a00` | fix: 목록뷰 구 필터 null 체크 — listGuSelect 없을 때 renderListView() 전체 죽는 버그 수정 |
+| 2026-06-02 | `f581b48` | feat: 최초 접속 닉네임 인증 화면 추가 (Upstash tennis_whitelist whitelist 연동) |
 
 ---
 
@@ -77,6 +79,26 @@ api/
 | `UPSTASH_REDIS_REST_URL` | Upstash Redis URL (home, keywords) |
 | `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis Token (home, keywords) |
 | `TMAP_API_KEY` | T-map 좌표변환 (home.js) |
+
+---
+
+## 작업 내역 (2026-06-02)
+
+### 버그 수정
+
+- `index.html` `renderListView()`: `document.getElementById('listGuSelect').value` null 참조 에러 수정
+  - **원인**: 목록뷰 툴바 HTML이 어느 시점에 제거됐는데 JS 코드는 요소가 있다고 가정하고 `.value` 직접 접근
+  - **증상**: 목록 탭 클릭 시 아무것도 표시 안 됨 (함수 전체가 에러로 죽음)
+  - **수정**: null 체크 추가 (`var lgs = getElementById(...); if(lgs) lgs.value = ...`)
+
+### 신규 기능: 최초 접속 닉네임 인증
+
+- `index.html`: 최초 접속 시 웰컴 오버레이 강제 표시
+  - localStorage에 `tennis_user` 키가 없으면 전체화면 오버레이 노출 (배경 클릭으로 닫기 불가)
+  - 닉네임 입력 → `/api/auth` POST → `{ allowed: true }` 응답 시 입장 허용
+  - 미등록 닉네임이면 오버레이 유지 + 인라인 에러 메시지
+  - 인증 성공 시 localStorage 저장 → 재방문 시 자동 입장
+- `api/auth.js`: Upstash Redis `SISMEMBER tennis_whitelist <nickname>` 기반 인증 (기존 파일 활용)
 
 ---
 
